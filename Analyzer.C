@@ -21,8 +21,8 @@ int Analyzer(){
   TTreeReaderValue<Float_t> fO(fReader,"fOpen");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
 
-  TH1F *fHDiffLL = new TH1F("fHDiffLL",fSymbol+";Difference between one-day low prices;Counts",NBINS,XMIN,XMAX);
-  TH1F *fHDiffHH = new TH1F("fHDiffHH",fSymbol+";Difference between one-day high prices;Counts",NBINS,XMIN,XMAX);
+  TH1F *fHDiffLL = new TH1F("fHDiffLL",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" low prices;Counts",NBINS,XMIN,XMAX);
+  TH1F *fHDiffHH = new TH1F("fHDiffHH",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" high prices;Counts",NBINS,XMIN,XMAX);
   TH1F *fHDiffLH = new TH1F("fHDiffLH",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" low prices;Counts",NBINS,XMIN,XMAX);
 
   Float_t fPrevL;
@@ -40,7 +40,12 @@ int Analyzer(){
   c1->Divide(2,2);
   
   c1->cd(1);
-  fHDiffLH->Draw("HIST");
+  //Need to Check: Is it a Poisson Distribution?
+  TF1 *fPoisson = new TF1("fPoisson","[0]*TMath::Power(([1]/[2]),(x/[2]))*(TMath::Exp(-([1]/[2])))/TMath::Gamma((x/[2])+1)", -0.1, 0.5);
+  gStyle->SetOptFit();
+  fPoisson->SetParameters(1, 1, 1);
+  fHDiffLH->Fit("fPoisson","R");
+  fHDiffLH->Draw();
 
   c1->cd(2);
   fHDiffLL->Draw("HIST");

@@ -17,5 +17,5 @@ wget -q --no-check-certificate --save-cookies=/tmp/ycookie.txt https://finance.y
 
 crumb=$(grep 'root.*App' /tmp/ycrumb.store | sed 's/,/\n/g' | grep CrumbStore | sed 's/"CrumbStore":{"crumb":"\(.*\)"}/\1/')
 
-wget -q --no-check-certificate --load-cookies=/tmp/ycookie.txt "https://query1.finance.yahoo.com/v7/finance/download/$symbol?period1=$first_date&period2=$last_date&interval=$2&events=history&crumb=$crumb" -O /tmp/$symbol.csv
+wget -q --no-check-certificate --load-cookies=/tmp/ycookie.txt "https://query1.finance.yahoo.com/v7/finance/download/$symbol?period1=$first_date&period2=$last_date&interval=$2&events=history&crumb=$crumb" -O $symbol.csv
 
