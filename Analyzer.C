@@ -4,7 +4,7 @@
 
 int Analyzer(){
 
-  TString fStartDate = "Jan 01 2009";
+  TString fStartDate = "Nov 10 2000";
   TString fEndDate = "Nov 10 2017";
   TString fSymbol = "SOXL";
   TString fFreq = "1wk";  // 1d, 1wk, 1mo
@@ -21,9 +21,9 @@ int Analyzer(){
   TTreeReaderValue<Float_t> fO(fReader,"fOpen");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
 
-  TH1F *fHDiffLL = new TH1F("fHDiffLL",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" low prices;Counts",NBINS,XMIN,XMAX);
-  TH1F *fHDiffHH = new TH1F("fHDiffHH",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" high prices;Counts",NBINS,XMIN,XMAX);
-  TH1F *fHDiffLH = new TH1F("fHDiffLH",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" low prices;Counts",NBINS,XMIN,XMAX);
+  TH1F *fHDiffLL = new TH1F("fHDiffLL",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" low prices;Counts from "+fStartDate+" to "+fEndDate,NBINS,XMIN,XMAX);
+  TH1F *fHDiffHH = new TH1F("fHDiffHH",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" high prices;Counts from "+fStartDate+" to "+fEndDate,NBINS,XMIN,XMAX);
+  TH1F *fHDiffLH = new TH1F("fHDiffLH",fSymbol+";Difference between "+fFreq+" high and previous "+fFreq+" low prices;Counts from "+fStartDate+" to "+fEndDate,NBINS,XMIN,XMAX);
 
   Float_t fPrevL;
   Float_t fPrevH;
@@ -36,13 +36,13 @@ int Analyzer(){
     fPrevH = *fH;		    
   }
   
-  TCanvas *c1 = new TCanvas("c1");
+  TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
   c1->Divide(2,2);
   
   c1->cd(1);
   //Need to Check: Is it a Poisson Distribution?
   TF1 *fPoisson = new TF1("fPoisson","[0]*TMath::Power(([1]/[2]),(x/[2]))*(TMath::Exp(-([1]/[2])))/TMath::Gamma((x/[2])+1)", -0.1, 0.5);
-  gStyle->SetOptFit();
+  //gStyle->SetOptFit();
   fPoisson->SetParameters(1, 1, 1);
   fHDiffLH->Fit("fPoisson","R");
   fHDiffLH->Draw();
@@ -52,6 +52,7 @@ int Analyzer(){
 
   c1->cd(3);
   fHDiffHH->Draw("HIST");
+  c1->Print(fSymbol+".png");
   
   return 0;
 
