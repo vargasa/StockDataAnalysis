@@ -4,7 +4,7 @@
 
 int Analyzer(){
 
-  TString fStartDate = "Nov 10 2000";
+  TString fStartDate = "Nov 10 2016";
   TString fEndDate = "Nov 10 2017";
   TString fSymbol = "SOXL";
   TString fFreq = "1wk";  // 1d, 1wk, 1mo
@@ -44,14 +44,22 @@ int Analyzer(){
   TF1 *fPoisson = new TF1("fPoisson","[0]*TMath::Power(([1]/[2]),(x/[2]))*(TMath::Exp(-([1]/[2])))/TMath::Gamma((x/[2])+1)", -0.1, 0.5);
   //gStyle->SetOptFit();
   fPoisson->SetParameters(1, 1, 1);
-  fHDiffLH->Fit("fPoisson","R");
+  fHDiffLH->Fit("fPoisson","QR");
   fHDiffLH->Draw();
 
   c1->cd(2);
-  fHDiffLL->Draw("HIST");
+  TF1 *fGausLL = new TF1("GausLL","gaus");
+  fHDiffLL->Fit("GausLL","QM+");
+  Float_t fHPriceLL = fPrevL*(1+fGausLL->GetParameter(1));
+  printf("Next Low price: %f\n",fHPriceLL);
+  fHDiffLL->Draw();
 
   c1->cd(3);
-  fHDiffHH->Draw("HIST");
+  TF1 *fGausHH = new TF1("GausHH","gaus");
+  fHDiffHH->Fit("GausHH","QM+");
+  Float_t fHPriceHH = fPrevH*(1 + fGausHH->GetParameter(1));
+  printf("Next High price: %f\n",fHPriceHH);
+  fHDiffHH->Draw();
   c1->Print(fSymbol+".png");
   
   return 0;
