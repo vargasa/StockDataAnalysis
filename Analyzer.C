@@ -4,8 +4,8 @@
 
 int Analyzer( TString fSymbol = "SOXL",
 	      TString fFreq = "1wk",
-	      TDatime fStartDate = TDatime("2010-01-01 00:00:00"),
-	      TDatime fEndDate = TDatime("2017-11-10 00:00:00") ) {
+	      TDatime fStartDate = TDatime("2017-01-01 00:00:00"),
+	      TDatime fEndDate = TDatime("2017-11-17 00:00:00") ) {
 
   // 1d, 1wk, 1mo
   gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"'");
@@ -40,6 +40,8 @@ int Analyzer( TString fSymbol = "SOXL",
 
   Float_t fPrevL;
   Float_t fPrevH;
+
+  TDatime fDate;
   
   Int_t fEvent = 0;
 
@@ -48,8 +50,13 @@ int Analyzer( TString fSymbol = "SOXL",
   
   Int_t fFail = 0;
   Int_t fSuccess = 0;
+  
      
   while(fReader.Next()){
+
+    TString fSDt = static_cast<char*>(fDt.GetAddress());
+    fSDt.Append(" 00:00:00");
+    fDate = TDatime(fSDt);
 
     if ( fEvent > 105 ) {
       
