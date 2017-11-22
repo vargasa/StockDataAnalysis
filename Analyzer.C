@@ -2,9 +2,23 @@
 #define XMAX 0.5
 #define NBINS 100
 
+Int_t GetIndex( Int_t fEvent, Int_t fInterval){
+
+  Int_t fIndex = 0;
+  Int_t fAux = (fEvent%fInterval - 1);
+
+  if( fAux >= 0 ) {
+    fIndex = fAux;
+  } else {
+    fIndex = fInterval-1;
+  }
+  return fIndex;
+    
+}
+
 int Analyzer( TString fSymbol = "SOXL",
 	      TString fFreq = "1wk",
-	      TDatime fStartDate = TDatime("2017-01-01 00:00:00"),
+	      TDatime fStartDate = TDatime("2009-01-01 00:00:00"),
 	      TDatime fEndDate = TDatime("2017-11-17 00:00:00") ) {
 
   // 1d, 1wk, 1mo
@@ -24,18 +38,18 @@ int Analyzer( TString fSymbol = "SOXL",
 
   TH1F *fHDiffLL = new TH1F("fHDiffLL",
 			    fSymbol+";Difference between "+fFreq+" high and previous "
-			    +fFreq+" low prices;Counts from "+fStartDate.AsString()
+			    +fFreq+" low prices;Counts from "+fStartDate.AsSQLString()
 			    +" to "+fEndDate.AsString(),
 			    NBINS,XMIN,XMAX);
   TH1F *fHDiffHH = new TH1F("fHDiffHH",
 			    fSymbol+";Difference between "+fFreq+" high and previous "
-			    +fFreq+" high prices;Counts from "+fStartDate.AsString()
-			    +" to "+fEndDate.AsString(),
+			    +fFreq+" high prices;Counts from "+fStartDate.AsSQLString()
+			    +" to "+fEndDate.AsSQLString(),
 			    NBINS,XMIN,XMAX);
   TH1F *fHDiffLH = new TH1F("fHDiffLH",
 			    fSymbol+";Difference between "+fFreq+" high and previous "
-			    +fFreq+" low prices;Counts from "+fStartDate.AsString()
-			    +" to "+fEndDate.AsString(),
+			    +fFreq+" low prices;Counts from "+fStartDate.AsSQLString()
+			    +" to "+fEndDate.AsSQLString(),
 			    NBINS,XMIN,XMAX);
 
   Float_t fPrevL;
@@ -45,33 +59,34 @@ int Analyzer( TString fSymbol = "SOXL",
   
   Int_t fEvent = 0;
 
+  // Fast and Slow Moving Averages
+  TString fSMAOption = "close";
+  Int_t fFastSMAInterval = 7;
+  Int_t fSlowSMAInterval = 26;
+  Float_t fPriceFastSMA[fFastSMAInterval];
+  Float_t fPriceSlowSMA[fSlowSMAInterval];
+  TGraph *fGFastSMA = new TGraph();
+  TGraph *fGSlowSMA = new TGraph();
+
   Float_t fNPriceHH;
   Float_t fNPriceLL;
   
-  Int_t fFail = 0;
-  Int_t fSuccess = 0;
-  
-     
   while(fReader.Next()){
 
     TString fSDt = static_cast<char*>(fDt.GetAddress());
     fSDt.Append(" 00:00:00");
     fDate = TDatime(fSDt);
 
-    if ( fEvent > 105 ) {
-      
-      if ( (fNPriceLL > *fL) && (fNPriceHH < *fH) ) {
-	fSuccess++;
-	printf("||======SUCESS======||\n");
-      } else {
-	fFail++;
-	printf("||=====FAILURE======||\n");
-      }
-      printf("Prediction LP: %f ; Prediction HP : %f\n", fNPriceLL, fNPriceHH);
-      printf("Actual LP: %f ; Actual HP: %f\n", *fL,*fH);
-      printf("Difference LP: %.2f%% Difference HP: %.2f%%\n", (*fL-fNPriceLL)*100/fNPriceLL, (*fH-fNPriceHH)*100/fNPriceHH);
-      
+    fPriceFastSMA[GetIndex(fEvent,fFastSMAInterval)] = *fC;
+    fPriceSlowSMA[GetIndex(fEvent,fSlowSMAInterval)] = *fC;
 
+    if (fEvent > fSlowSMAInterval){
+ 
+      Float_t FSMA = TMath::Mean(fFastSMAInterval,&fPriceFastSMA[0]);
+      Float_t SSMA = TMath::Mean(fSlowSMAInterval,&fPriceSlowSMA[0]);
+      
+      fGFastSMA->SetPoint(fGFastSMA->GetN(),fDate.Convert(),FSMA);
+      fGSlowSMA->SetPoint(fGSlowSMA->GetN(),fDate.Convert(),SSMA);
     }
     
     fEvent++;
@@ -80,25 +95,9 @@ int Analyzer( TString fSymbol = "SOXL",
     fHDiffHH->Fill( (*fH - fPrevH)/(fPrevH) );
     
     fPrevL = *fL;
-    fPrevH = *fH;
-    
-    if ( fEvent > 104 ) {
-      
-      TF1 *fGausLL = new TF1("GausLL","gaus");
-      fHDiffLL->Fit("GausLL","QM+");
-      fNPriceLL = fPrevL*(1+fGausLL->GetParameter(1));
-      //fHDiffLL->Reset();
-      
-      TF1 *fGausHH = new TF1("GausHH","gaus");
-      fHDiffHH->Fit("GausHH","QM+");
-      fNPriceHH = fPrevH*(1 + fGausHH->GetParameter(1));
-      //fHDiffHH->Reset();
-	
-    } 
- 
-  }
+    fPrevH = *fH; 
 
-  printf("Success:%d Failures:%d\n",fSuccess,fFail);
+  }
   
   
   TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
@@ -124,9 +123,33 @@ int Analyzer( TString fSymbol = "SOXL",
   fHDiffHH->Fit("GausHH","QM+");
   Float_t fHPriceHH = fPrevH*(1 + fGausHH->GetParameter(1));
   //printf("Next High price: %f\n",fHPriceHH);
-  fHDiffHH->Draw();
-  c1->Print(fSymbol+".png");
+  //fHDiffHH->Draw();
   
+  TGraph *fGdSSMA = new TGraph();
+
+  for (Int_t i = 1; i < fGSlowSMA->GetN(); i++){
+    Double_t x1,y1,x2,y2;
+    fGSlowSMA->GetPoint(i-1,x1,y1);
+    fGSlowSMA->GetPoint(i,x2,y2);
+    Double_t dy = y2 - y1;
+    fGdSSMA->SetPoint(i-1,x2,dy/y1);
+  }
+  fGdSSMA->SetTitle(fSymbol+" Slow SMA Derivative; Date; Price");
+  fGdSSMA->GetXaxis()->SetTimeDisplay(1);
+  fGdSSMA->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGdSSMA->GetXaxis()->SetTimeOffset(0,"gmt");
+  fGdSSMA->Draw("AL*");
+  
+  c1->cd(4);
+  fGFastSMA->SetTitle(fSymbol+" Fast SMA; Date; Price");
+  fGFastSMA->GetXaxis()->SetTimeDisplay(1);
+  fGFastSMA->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGFastSMA->Draw("AP");
+  fGSlowSMA->Draw("P SAME");
+  fGdSSMA->Draw("l");
+     
+  c1->Print(fSymbol+".png");
+
   return 0;
 
 }
