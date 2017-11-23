@@ -2,6 +2,8 @@
 #define XMAX 0.5
 #define NBINS 100
 
+#include <TError.h>
+
 TString gSymbol;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -31,15 +33,17 @@ TFile *GetData( TString fSymbol,
 	       TDatime fStartDate,
 	       TDatime fEndDate){
   // 1d, 1wk, 1mo
-  gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"'");
-
-  TFile *f = new TFile(fSymbol+".root","RECREATE");
-  TTree *tree = new TTree(fSymbol,"From CSV File");
-  tree->ReadFile(fSymbol+".csv","fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
-  f->Write();
-
-  return f;
-
+  Int_t ans = gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"'");
+  if (ans == 0) {
+    TFile *f = new TFile(fSymbol+".root","RECREATE");
+    TTree *tree = new TTree(fSymbol,"From CSV File");
+    tree->ReadFile(fSymbol+".csv","fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
+    f->Write();
+    return f;
+  } else {
+    printf("\nData Download was unsucessfull\n");
+  }
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
