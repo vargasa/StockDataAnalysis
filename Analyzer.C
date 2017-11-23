@@ -16,11 +16,10 @@ Int_t GetIndex( Int_t fEvent, Int_t fInterval){
     
 }
 
-int Analyzer( TString fSymbol = "SOXL",
-	      TString fFreq = "1wk",
-	      TDatime fStartDate = TDatime("2009-01-01 00:00:00"),
-	      TDatime fEndDate = TDatime("2017-11-17 00:00:00") ) {
-
+Int_t GetData( TString fSymbol,
+	       TString fFreq,
+	       TDatime fStartDate,
+	       TDatime fEndDate){
   // 1d, 1wk, 1mo
   gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"'");
 
@@ -28,6 +27,18 @@ int Analyzer( TString fSymbol = "SOXL",
   TTree *tree = new TTree(fSymbol,"From CSV File");
   tree->ReadFile(fSymbol+".csv","fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
   f->Write();
+  f->Close();
+
+  return 0;
+
+}
+
+int Analyzer( TString fSymbol = "SOXL",
+	      TString fFreq = "1wk",
+	      TDatime fStartDate = TDatime("2009-01-01 00:00:00"),
+	      TDatime fEndDate = TDatime("2017-11-17 00:00:00") ) {
+
+  TFile *f = new TFile(fSymbol+".root","OPEN");
 
   TTreeReader fReader(fSymbol, f);
   TTreeReaderArray<char> fDt(fReader,"fDate");
