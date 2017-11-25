@@ -49,21 +49,22 @@ TFile *GetData( TString fSymbol,
 ////////////////////////////////////////////////////////////////////////////////
 /// Aroon Up
 
-TGraph *GetAroonUp(TFile *f,
-	       Int_t fInterval = 25){
+TGraph *GetAroon(TFile *f,
+		 Int_t fInterval = 25,
+		 TString Option = "up" /*down*/){
 
   TTreeReader fReader(gSymbol, f);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
   TTreeReaderValue<Float_t> fL(fReader,"fLow");
+  TTreeReaderValue<Float_t> fX;
 
   TDatime fDate;
 
   Int_t fEvent;
   Float_t Price[fInterval];
-  TGraph *fGAroonUp = new TGraph();
+  TGraph *fGAroon = new TGraph();
   
-
   while(fReader.Next()){
 
     TString fSDt = static_cast<char*>(fDt.GetAddress());
@@ -72,31 +73,43 @@ TGraph *GetAroonUp(TFile *f,
     
     Float_t aroon;
     Int_t inow = GetIndex(fEvent,fInterval);
-    Price[inow] = *fH;
+
+    if (Option.Contains("up")){
+      Price[inow] = *fH;
+    } else if (Option.Contains("down")) {
+      Price[inow] = *fL;
+    }
     
     if (fEvent > fInterval) {
-      Int_t maxIndex = TMath::LocMax(fInterval,Price);
-      if ( maxIndex < inow ) {
-	aroon = (Float_t)(fInterval - (inow - maxIndex))*100;
+      
+      Int_t ExtIndex;
+
+      if (Option.Contains("up")){
+	ExtIndex  = TMath::LocMax(fInterval,Price);
+      } else if (Option.Contains("down")) {
+	ExtIndex  = TMath::LocMin(fInterval,Price);
+      }
+      if ( ExtIndex < inow || ExtIndex == inow ) {
+	aroon = (Float_t)(fInterval - (inow - ExtIndex))*100;
+	
       } else {
-	aroon = (Float_t)(fInterval - (fInterval-maxIndex+inow))*100;
+	aroon = (Float_t)(fInterval - (fInterval-ExtIndex+inow))*100;	
       }
       aroon = aroon/(Float_t)fInterval;
     }
 
-    cout << aroon << endl;
-
-    
-    fGAroonUp->SetPoint(fGAroonUp->GetN(),fDate.Convert(),aroon);
+    fGAroon->SetPoint(fGAroon->GetN(),fDate.Convert(),aroon);
     
     fEvent++;
   }
-  fGAroonUp->SetTitle(Form("%s AroonUp(%d);Date;AroonUp",gSymbol.Data(),fInterval));
-  fGAroonUp->GetXaxis()->SetTimeDisplay(1);
-  fGAroonUp->GetXaxis()->SetTimeFormat("%Y/%m/%d");
-  fGAroonUp->GetXaxis()->SetTimeOffset(0,"gmt");
+  fGAroon->SetTitle(Form("%s Aroon"+Option+"(%d);Date;Aroon"+Option,gSymbol.Data(),fInterval));
+  fGAroon->GetXaxis()->SetTimeDisplay(1);
+  fGAroon->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGAroon->GetXaxis()->SetTimeOffset(0,"gmt");
+  fGAroon->GetYaxis()->SetRangeUser(0.,110.);
+  
 
-  return fGAroonUp;
+  return fGAroon;
   
   
 }
@@ -170,10 +183,10 @@ TGraph *Derivative(TGraph *fg){
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Main Function
-Int_t Analyzer( TString fSymbol = "GOOGL",
+Int_t Analyzer( TString fSymbol = "SPY",
 	      TString fFreq = "1d",
-	      TDatime fStartDate = TDatime("2010-10-05 00:00:00"),
-	      TDatime fEndDate = TDatime("2017-11-20 00:00:00") ) {
+	      TDatime fStartDate = TDatime("2009-10-01 00:00:00"),
+	      TDatime fEndDate = TDatime("2010-06-05 00:00:00")) {
 
   TFile *f = GetData(fSymbol, fFreq, fStartDate, fEndDate);
   f->ReOpen("READ");
@@ -259,8 +272,13 @@ Int_t Analyzer( TString fSymbol = "GOOGL",
   TGraph *fGdSlowSMA = Derivative(fGSlowSMA);
   fGdSlowSMA->SetTitle(Form("%s;Date;SlowSMA Derivative",fSymbol.Data()));
   //fGdSlowSMA->Draw("AL*");
-  TGraph *fGAroonUp = GetAroonUp(f,25);
+  TGraph *fGAroonUp = GetAroon(f,25,"up");
+  fGAroonUp->SetLineColor(kGreen);
   fGAroonUp->Draw("al");
+  TGraph *fGAroonDown = GetAroon(f,25,"down");
+  fGAroonDown->SetLineColor(kRed);
+  fGAroonDown->Draw("same");
+  
   
   //printf("Next High price: %f\n",fHPriceHH);
   //fHDiffHH->Draw();
