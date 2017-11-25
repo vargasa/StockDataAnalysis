@@ -45,25 +45,21 @@ TFile *GetData( TString fSymbol,
   }
   
 }
-
 ////////////////////////////////////////////////////////////////////////////////
-/// Aroon Up
+/// AroonDown
 
-TGraph *GetAroon(TFile *f,
-		 Int_t fInterval = 25,
-		 TString Option = "up" /*down*/){
+TGraph *GetAroonDown(TFile *f,
+		 Int_t fInterval = 25){
 
   TTreeReader fReader(gSymbol, f);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
-  TTreeReaderValue<Float_t> fL(fReader,"fLow");
-  TTreeReaderValue<Float_t> fX;
 
   TDatime fDate;
 
   Int_t fEvent;
   Float_t Price[fInterval];
-  TGraph *fGAroon = new TGraph();
+  TGraph *fGAroonDown = new TGraph();
   
   while(fReader.Next()){
 
@@ -71,49 +67,121 @@ TGraph *GetAroon(TFile *f,
     fSDt.Append(" 00:00:00");
     fDate = TDatime(fSDt);
     
-    Float_t aroon;
+    Float_t aroondown;
     Int_t inow = GetIndex(fEvent,fInterval);
 
-    if (Option.Contains("up")){
-      Price[inow] = *fH;
-    } else if (Option.Contains("down")) {
-      Price[inow] = *fL;
-    }
+
+    Price[inow] = *fH;
+
     
     if (fEvent > fInterval) {
       
-      Int_t ExtIndex;
-
-      if (Option.Contains("up")){
-	ExtIndex  = TMath::LocMax(fInterval,Price);
-      } else if (Option.Contains("down")) {
-	ExtIndex  = TMath::LocMin(fInterval,Price);
-      }
-      if ( ExtIndex < inow || ExtIndex == inow ) {
-	aroon = (Float_t)(fInterval - (inow - ExtIndex))*100;
+      Int_t MinIndex;
+      MinIndex  = TMath::LocMin(fInterval,Price);
+      if ( MinIndex < inow || MinIndex == inow ) {
+	aroondown = (Float_t)(fInterval - (inow - MinIndex))*100;
 	
       } else {
-	aroon = (Float_t)(fInterval - (fInterval-ExtIndex+inow))*100;	
+	aroondown = (Float_t)(fInterval - (fInterval-MinIndex+inow))*100;	
       }
-      aroon = aroon/(Float_t)fInterval;
+      aroondown = aroondown/(Float_t)fInterval;
+      fGAroonDown->SetPoint(fGAroonDown->GetN(),fDate.Convert(),aroondown);
     }
-
-    fGAroon->SetPoint(fGAroon->GetN(),fDate.Convert(),aroon);
     
     fEvent++;
   }
-  fGAroon->SetTitle(Form("%s Aroon"+Option+"(%d);Date;Aroon"+Option,gSymbol.Data(),fInterval));
-  fGAroon->GetXaxis()->SetTimeDisplay(1);
-  fGAroon->GetXaxis()->SetTimeFormat("%Y/%m/%d");
-  fGAroon->GetXaxis()->SetTimeOffset(0,"gmt");
-  fGAroon->GetYaxis()->SetRangeUser(0.,110.);
   
-
-  return fGAroon;
+  fGAroonDown->SetTitle(Form("%s AroonUp(%d);Date;AroonUp",gSymbol.Data(),fInterval));
+  fGAroonDown->GetXaxis()->SetTimeDisplay(1);
+  fGAroonDown->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGAroonDown->GetXaxis()->SetTimeOffset(0,"gmt");
+  fGAroonDown->GetYaxis()->SetRangeUser(0.,110.);
+  fGAroonDown->SetLineColor(kRed);
   
+  return fGAroonDown;
   
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// AroonUp
+
+TGraph *GetAroonUp(TFile *f,
+		 Int_t fInterval = 25){
+
+  TTreeReader fReader(gSymbol, f);
+  TTreeReaderArray<char> fDt(fReader,"fDate");
+  TTreeReaderValue<Float_t> fH(fReader,"fHigh");
+
+  TDatime fDate;
+
+  Int_t fEvent;
+  Float_t Price[fInterval];
+  TGraph *fGAroonUp = new TGraph();
+  
+  while(fReader.Next()){
+
+    TString fSDt = static_cast<char*>(fDt.GetAddress());
+    fSDt.Append(" 00:00:00");
+    fDate = TDatime(fSDt);
+    
+    Float_t aroonup;
+    Int_t inow = GetIndex(fEvent,fInterval);
+
+
+    Price[inow] = *fH;
+
+    
+    if (fEvent > fInterval) {
+      
+      Int_t MaxIndex;
+      MaxIndex  = TMath::LocMax(fInterval,Price);
+      if ( MaxIndex < inow || MaxIndex == inow ) {
+	aroonup = (Float_t)(fInterval - (inow - MaxIndex))*100;
+	
+      } else {
+	aroonup = (Float_t)(fInterval - (fInterval-MaxIndex+inow))*100;	
+      }
+      aroonup = aroonup/(Float_t)fInterval;
+      fGAroonUp->SetPoint(fGAroonUp->GetN(),fDate.Convert(),aroonup);	  
+    }
+
+    fEvent++;
+  }
+  fGAroonUp->SetTitle(Form("%s AroonUp(%d);Date;AroonUp",gSymbol.Data(),fInterval));
+  fGAroonUp->GetXaxis()->SetTimeDisplay(1);
+  fGAroonUp->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGAroonUp->GetXaxis()->SetTimeOffset(0,"gmt");
+  fGAroonUp->GetYaxis()->SetRangeUser(0.,110.);
+  fGAroonUp->SetLineColor(kGreen);
+
+  return fGAroonUp;
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Aroon Oscillator
+TGraph *GetAroon(TFile *f,
+		 Int_t fInterval = 25){
+  
+  TGraph *fGAroon = new TGraph();
+  TGraph *fGAroonUp = GetAroonUp(f,fInterval);
+  TGraph *fGAroonDown = GetAroonDown(f,fInterval);
+  for (Int_t i = 0; i < fGAroonUp->GetN(); i++){
+    Double_t x1, y1, x2, y2;
+    fGAroonUp->GetPoint(i,x1,y1);
+    fGAroonDown->GetPoint(i,x2,y2);
+    fGAroon->SetPoint(i,x1,y1-y2);
+  }
+  fGAroon->SetTitle(Form("%s Aroon Oscillator(%d);Date;Aroon",gSymbol.Data(),fInterval));
+  fGAroon->GetXaxis()->SetTimeDisplay(1);
+  fGAroon->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGAroon->GetXaxis()->SetTimeOffset(0,"gmt");
+  fGAroon->GetYaxis()->SetRangeUser(-110.,110.);
+  fGAroon->SetLineColor(kBlue);
+
+  return fGAroon;
+  
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Simple Moving Average SMA
@@ -181,6 +249,14 @@ TGraph *Derivative(TGraph *fg){
   return fgd;
 }
 
+
+////////////////////////////////////////////////////////////////////////////////
+/// Hi-Lo Analysis
+
+Int_t HiLoAnalysis(TFile *f){
+  return 0;
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 /// Main Function
 Int_t Analyzer( TString fSymbol = "SPY",
@@ -243,7 +319,7 @@ Int_t Analyzer( TString fSymbol = "SPY",
   
   
   TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
-  c1->Divide(2,2);
+  c1->Divide(2,3);
   
   c1->cd(1);
   //Need to Check: Is it a Poisson Distribution?
@@ -251,7 +327,7 @@ Int_t Analyzer( TString fSymbol = "SPY",
   //gStyle->SetOptFit();
   fPoisson->SetParameters(1, 1, 1);
   fHDiffLH->Fit("fPoisson","QR");
-  fHDiffLH->Draw();
+  //fHDiffLH->Draw();
 
   c1->cd(2);
   TF1 *fGausLL = new TF1("GausLL","gaus");
@@ -272,12 +348,17 @@ Int_t Analyzer( TString fSymbol = "SPY",
   TGraph *fGdSlowSMA = Derivative(fGSlowSMA);
   fGdSlowSMA->SetTitle(Form("%s;Date;SlowSMA Derivative",fSymbol.Data()));
   //fGdSlowSMA->Draw("AL*");
-  TGraph *fGAroonUp = GetAroon(f,25,"up");
-  fGAroonUp->SetLineColor(kGreen);
+  TGraph *fGAroonUp = GetAroonUp(f,25);
   fGAroonUp->Draw("al");
-  TGraph *fGAroonDown = GetAroon(f,25,"down");
-  fGAroonDown->SetLineColor(kRed);
+  TGraph *fGAroonDown = GetAroonDown(f,25);
   fGAroonDown->Draw("same");
+
+  c1->cd(5);
+  TGraph *fGAroon = GetAroon(f,25);
+  fGAroon->Draw("al");
+  // fGAroon->Draw("AL");
+  
+  
   
   
   //printf("Next High price: %f\n",fHPriceHH);
