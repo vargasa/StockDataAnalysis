@@ -5,13 +5,14 @@
 #include <TError.h>
 
 TString gSymbol;
+TString gFreq;
+TDatime gStartDate;
+TDatime gEndDate;
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Function to compute an index when using present and historical data when
-/// using composed variables
+/// Function to compute an index to reuse array filling it cyclically
 
 Int_t GetIndex( Int_t fEvent, Int_t fInterval){
-
 
   Int_t fIndex = 0;
   Int_t fAux = (fEvent%fInterval - 1);
@@ -254,41 +255,26 @@ TGraph *Derivative(TGraph *fg){
 /// Hi-Lo Analysis
 
 Int_t HiLoAnalysis(TFile *f){
-  return 0;
-}
 
-////////////////////////////////////////////////////////////////////////////////
-/// Main Function
-Int_t Analyzer( TString fSymbol = "SPY",
-	      TString fFreq = "1d",
-	      TDatime fStartDate = TDatime("2009-10-01 00:00:00"),
-	      TDatime fEndDate = TDatime("2010-06-05 00:00:00")) {
-
-  TFile *f = GetData(fSymbol, fFreq, fStartDate, fEndDate);
-  f->ReOpen("READ");
-  gSymbol = fSymbol;
-
-  TTreeReader fReader(fSymbol, f);
+  TTreeReader fReader(gSymbol, f);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
   TTreeReaderValue<Float_t> fL(fReader,"fLow");
-  TTreeReaderValue<Float_t> fO(fReader,"fOpen");
-  TTreeReaderValue<Float_t> fC(fReader,"fClose");
 
   TH1F *fHDiffLL = new TH1F("fHDiffLL",
-			    fSymbol+";Difference between "+fFreq+" high and previous "
-			    +fFreq+" low prices;Counts from "+fStartDate.AsSQLString()
-			    +" to "+fEndDate.AsString(),
+			    gSymbol+";Difference between "+gFreq+" high and previous "
+			    +gFreq+" low prices;Counts from "+gStartDate.AsSQLString()
+			    +" to "+gEndDate.AsString(),
 			    NBINS,XMIN,XMAX);
   TH1F *fHDiffHH = new TH1F("fHDiffHH",
-			    fSymbol+";Difference between "+fFreq+" high and previous "
-			    +fFreq+" high prices;Counts from "+fStartDate.AsSQLString()
-			    +" to "+fEndDate.AsSQLString(),
+			    gSymbol+";Difference between "+gFreq+" high and previous "
+			    +gFreq+" high prices;Counts from "+gStartDate.AsSQLString()
+			    +" to "+gEndDate.AsSQLString(),
 			    NBINS,XMIN,XMAX);
   TH1F *fHDiffLH = new TH1F("fHDiffLH",
-			    fSymbol+";Difference between "+fFreq+" high and previous "
-			    +fFreq+" low prices;Counts from "+fStartDate.AsSQLString()
-			    +" to "+fEndDate.AsSQLString(),
+			    gSymbol+";Difference between "+gFreq+" high and previous "
+			    +gFreq+" low prices;Counts from "+gStartDate.AsSQLString()
+			    +" to "+gEndDate.AsSQLString(),
 			    NBINS,XMIN,XMAX);
 
   Float_t fPrevL;
@@ -316,53 +302,72 @@ Int_t Analyzer( TString fSymbol = "SPY",
     fPrevH = *fH; 
 
   }
+
+  TCanvas *cHiLo = new TCanvas("cHiLo","cHiLo",2048,1152);
+  cHiLo->Divide(2,2);
   
-  
-  TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
-  c1->Divide(2,3);
-  
-  c1->cd(1);
+  cHiLo->cd(1);
   //Need to Check: Is it a Poisson Distribution?
   TF1 *fPoisson = new TF1("fPoisson","[0]*TMath::Power(([1]/[2]),(x/[2]))*(TMath::Exp(-([1]/[2])))/TMath::Gamma((x/[2])+1)", -0.1, 0.5);
   //gStyle->SetOptFit();
   fPoisson->SetParameters(1, 1, 1);
   fHDiffLH->Fit("fPoisson","QR");
-  //fHDiffLH->Draw();
+  fHDiffLH->Draw();
 
-  c1->cd(2);
+  cHiLo->cd(2);
   TF1 *fGausLL = new TF1("GausLL","gaus");
   fHDiffLL->Fit("GausLL","QM+");
   Float_t fHPriceLL = fPrevL*(1+fGausLL->GetParameter(1));
-  //printf("Next Low price: %f\n",fHPriceLL);
+  printf("Next Low price: %f\n",fHPriceLL);
   fHDiffLL->Draw();
 
-  
-  c1->cd(3);
-  TGraph *fGSlowSMA = GetSMA(f, 10,"close");
-  fGSlowSMA->Draw("AL");
-
-  c1->cd(4);
+  cHiLo->cd(3);
   TF1 *fGausHH = new TF1("GausHH","gaus");
   fHDiffHH->Fit("GausHH","QM+");
   Float_t fHPriceHH = fPrevH*(1 + fGausHH->GetParameter(1));
-  TGraph *fGdSlowSMA = Derivative(fGSlowSMA);
-  fGdSlowSMA->SetTitle(Form("%s;Date;SlowSMA Derivative",fSymbol.Data()));
-  //fGdSlowSMA->Draw("AL*");
+  
+  return 0;
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Main Function
+Int_t Analyzer( TString fSymbol = "SPY",
+	      TString fFreq = "1d",
+	      TDatime fStartDate = TDatime("2009-10-01 00:00:00"),
+	      TDatime fEndDate = TDatime("2010-06-05 00:00:00")) {
+
+  gSymbol = fSymbol;
+  gFreq = fFreq;
+  gStartDate = fStartDate;
+  gEndDate = fEndDate;
+  
+  TFile *f = GetData(fSymbol, fFreq, fStartDate, fEndDate);
+  f->ReOpen("READ");
+  gSymbol = fSymbol;
+
+  HiLoAnalysis(f);
+  
+  TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
+  c1->Divide(2,2);
+  
+  c1->cd(1);
+  TGraph *fGSlowSMA = GetSMA(f, 10,"close");
+  fGSlowSMA->SetLineColor(kBlue);
+  fGSlowSMA->Draw("AL");
+  TGraph *fGFastSMA = GetSMA(f, 6, "close");
+  fGFastSMA->SetLineColor(kGreen);
+  fGFastSMA->Draw("same");
+
+  c1->cd(2);
   TGraph *fGAroonUp = GetAroonUp(f,25);
   fGAroonUp->Draw("al");
   TGraph *fGAroonDown = GetAroonDown(f,25);
   fGAroonDown->Draw("same");
 
-  c1->cd(5);
+  c1->cd(3);
   TGraph *fGAroon = GetAroon(f,25);
   fGAroon->Draw("al");
-  // fGAroon->Draw("AL");
-  
-  
-  
-  
-  //printf("Next High price: %f\n",fHPriceHH);
-  //fHDiffHH->Draw();
      
   c1->Print(fSymbol+".png");
 
