@@ -47,6 +47,62 @@ TFile *GetData( TString fSymbol,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Aroon Up
+
+TGraph *GetAroonUp(TFile *f,
+	       Int_t fInterval = 25){
+
+  TTreeReader fReader(gSymbol, f);
+  TTreeReaderArray<char> fDt(fReader,"fDate");
+  TTreeReaderValue<Float_t> fH(fReader,"fHigh");
+  TTreeReaderValue<Float_t> fL(fReader,"fLow");
+
+  TDatime fDate;
+
+  Int_t fEvent;
+  Float_t Price[fInterval];
+  TGraph *fGAroonUp = new TGraph();
+  
+
+  while(fReader.Next()){
+
+    TString fSDt = static_cast<char*>(fDt.GetAddress());
+    fSDt.Append(" 00:00:00");
+    fDate = TDatime(fSDt);
+    
+    Float_t aroon;
+    Int_t inow = GetIndex(fEvent,fInterval);
+    Price[inow] = *fH;
+    
+    if (fEvent > fInterval) {
+      Int_t maxIndex = TMath::LocMax(fInterval,Price);
+      if ( maxIndex < inow ) {
+	aroon = (Float_t)(fInterval - (inow - maxIndex))*100;
+      } else {
+	aroon = (Float_t)(fInterval - (fInterval-maxIndex+inow))*100;
+      }
+      aroon = aroon/(Float_t)fInterval;
+    }
+
+    cout << aroon << endl;
+
+    
+    fGAroonUp->SetPoint(fGAroonUp->GetN(),fDate.Convert(),aroon);
+    
+    fEvent++;
+  }
+  fGAroonUp->SetTitle(Form("%s AroonUp(%d);Date;AroonUp",gSymbol.Data(),fInterval));
+  fGAroonUp->GetXaxis()->SetTimeDisplay(1);
+  fGAroonUp->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGAroonUp->GetXaxis()->SetTimeOffset(0,"gmt");
+
+  return fGAroonUp;
+  
+  
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 /// Simple Moving Average SMA
 
 TGraph *GetSMA(TFile *f,
@@ -114,10 +170,10 @@ TGraph *Derivative(TGraph *fg){
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Main Function
-Int_t Analyzer( TString fSymbol = "SOXL",
-	      TString fFreq = "1wk",
-	      TDatime fStartDate = TDatime("2009-01-01 00:00:00"),
-	      TDatime fEndDate = TDatime("2017-11-17 00:00:00") ) {
+Int_t Analyzer( TString fSymbol = "GOOGL",
+	      TString fFreq = "1d",
+	      TDatime fStartDate = TDatime("2010-10-05 00:00:00"),
+	      TDatime fEndDate = TDatime("2017-11-20 00:00:00") ) {
 
   TFile *f = GetData(fSymbol, fFreq, fStartDate, fEndDate);
   f->ReOpen("READ");
@@ -202,7 +258,9 @@ Int_t Analyzer( TString fSymbol = "SOXL",
   Float_t fHPriceHH = fPrevH*(1 + fGausHH->GetParameter(1));
   TGraph *fGdSlowSMA = Derivative(fGSlowSMA);
   fGdSlowSMA->SetTitle(Form("%s;Date;SlowSMA Derivative",fSymbol.Data()));
-  fGdSlowSMA->Draw("AL*");
+  //fGdSlowSMA->Draw("AL*");
+  TGraph *fGAroonUp = GetAroonUp(f,25);
+  fGAroonUp->Draw("al");
   
   //printf("Next High price: %f\n",fHPriceHH);
   //fHDiffHH->Draw();
