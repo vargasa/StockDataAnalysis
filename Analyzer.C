@@ -331,6 +331,67 @@ Int_t HiLoAnalysis(TFile *f){
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// BollingerBands
+TMultiGraph *GetBollingerBands(TFile *f,
+			       Int_t fInterval = 20,
+			       Float_t fW = 2.0
+			       ){
+  
+  TTreeReader fReader(gSymbol, f);
+  TTreeReaderArray<char> fDt(fReader,"fDate");
+  TTreeReaderValue<Float_t> fC(fReader,"fClose");
+  
+  TDatime fDate;
+
+  TGraph *fGSMA = GetSMA(f, fInterval, "close");
+
+  TGraph *fGUpperBand = new TGraph();
+  TGraph *fGLowerBand = new TGraph();
+
+  Float_t Price[fInterval];
+
+  Int_t fEvent = 0;
+  Int_t inow = 0;
+
+  while(fReader.Next()){
+    
+    TString fSDt = static_cast<char*>(fDt.GetAddress());
+    fSDt.Append(" 00:00:00");
+    fDate = TDatime(fSDt);
+
+    inow = GetIndex(fEvent,fInterval);
+
+    Price[inow] = *fC;
+
+    if ( fEvent > fInterval ) {
+      
+      Double_t x1, y1;
+      Double_t ub, lb;
+      fGSMA->GetPoint(fEvent,x1,y1);
+      ub = y1 + fW*TMath::StdDev(fInterval,&Price[0]);
+      lb = y1 - fW*TMath::StdDev(fInterval,&Price[0]);
+      fGUpperBand->SetPoint(fGUpperBand->GetN(),x1,ub);
+      fGLowerBand->SetPoint(fGLowerBand->GetN(),x1,lb);
+    }
+    
+    fGSMA->SetLineColor(kBlue);
+    fGUpperBand->SetLineColor(kGreen);
+    fGLowerBand->SetLineColor(kRed);
+
+    fEvent++;
+  }
+
+  TMultiGraph *fBB = new TMultiGraph();
+  fBB->Add(fGSMA);
+  fBB->Add(fGUpperBand);
+  fBB->Add(fGLowerBand);
+  fBB->SetTitle(Form("%s BollingerBands(%d);Date;BB",gSymbol.Data(),fInterval));  
+    
+  return fBB;
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Main Function
 Int_t Analyzer( TString fSymbol = "SPY",
 	      TString fFreq = "1d",
@@ -368,6 +429,10 @@ Int_t Analyzer( TString fSymbol = "SPY",
   c1->cd(3);
   TGraph *fGAroon = GetAroon(f,25);
   fGAroon->Draw("al");
+
+  c1->cd(4);
+  TMultiGraph *fGBB = GetBollingerBands(f,20,2.0);
+  fGBB->Draw("AL");
      
   c1->Print(fSymbol+".png");
 
