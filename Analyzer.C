@@ -212,7 +212,7 @@ TGraph *GetSMA(TFile *f,
     
     fPrice[GetIndex(fEvent,fInterval)] = *fC;
 
-    if (fEvent > fInterval){
+    if (fEvent >= fInterval){
       Float_t SMA = TMath::Mean(fInterval,&fPrice[0]);     
       fGSMA->SetPoint(fGSMA->GetN(),fDate.Convert(),SMA);
     }
@@ -363,17 +363,16 @@ TMultiGraph *GetBollingerBands(TFile *f,
 
     Price[inow] = *fC;
 
-    if ( fEvent > fInterval ) {
-      
+    if ( fEvent >= fInterval ) {
       Double_t x1, y1;
       Double_t ub, lb;
-      fGSMA->GetPoint(fEvent,x1,y1);
+      fGSMA->GetPoint(fEvent-fInterval,x1,y1);
       ub = y1 + fW*TMath::StdDev(fInterval,&Price[0]);
       lb = y1 - fW*TMath::StdDev(fInterval,&Price[0]);
       fGUpperBand->SetPoint(fGUpperBand->GetN(),x1,ub);
       fGLowerBand->SetPoint(fGLowerBand->GetN(),x1,lb);
     }
-    
+
     fGSMA->SetLineColor(kBlue);
     fGUpperBand->SetLineColor(kGreen);
     fGLowerBand->SetLineColor(kRed);
