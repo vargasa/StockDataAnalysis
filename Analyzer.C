@@ -391,6 +391,35 @@ TMultiGraph *GetBollingerBands(TFile *f,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Volume Graph
+TGraph *GetVolume(TFile *f){
+  
+  TTreeReader fReader(gSymbol, f);
+  TTreeReaderArray<char> fDt(fReader,"fDate");
+  TTreeReaderValue<Int_t> fVol(fReader,"fVolume");
+
+  TDatime fDate;
+  TGraph *fGVol = new TGraph();
+  
+  while(fReader.Next()){
+    
+    TString fSDt = static_cast<char*>(fDt.GetAddress());
+    fSDt.Append(" 00:00:00");
+    fDate = TDatime(fSDt);
+
+    fGVol->SetPoint(fGVol->GetN(),fDate.Convert(),*fVol);
+
+  }
+  fGVol->SetDrawOption("AB");
+  fGVol->SetTitle(Form("%s Volume;Date;SMA",gSymbol.Data()));
+  fGVol->GetXaxis()->SetTimeDisplay(1);
+  fGVol->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
+  return fGVol;
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Main Function
 Int_t Analyzer( TString fSymbol = "SPY",
 	      TString fFreq = "1d",
@@ -409,7 +438,7 @@ Int_t Analyzer( TString fSymbol = "SPY",
   HiLoAnalysis(f);
   
   TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
-  c1->Divide(2,2);
+  c1->Divide(3,2);
   
   c1->cd(1);
   TGraph *fGSlowSMA = GetSMA(f, 10,"close");
@@ -432,6 +461,11 @@ Int_t Analyzer( TString fSymbol = "SPY",
   c1->cd(4);
   TMultiGraph *fGBB = GetBollingerBands(f,20,2.0);
   fGBB->Draw("AL");
+
+  c1->cd(5);
+  TGraph *fGVol = GetVolume(f);
+  fGVol->Draw("AB");
+  
      
   c1->Print(fSymbol+".png");
 
