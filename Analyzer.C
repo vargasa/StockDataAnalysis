@@ -332,7 +332,7 @@ Int_t HiLoAnalysis(TFile *f){
 
 ////////////////////////////////////////////////////////////////////////////////
 /// BollingerBands
-TMultiGraph *GetBollingerBands(TFile *f,
+TGraphErrors *GetBollingerBands(TFile *f,
 			       Int_t fInterval = 20,
 			       Float_t fW = 2.0
 			       ){
@@ -345,8 +345,7 @@ TMultiGraph *GetBollingerBands(TFile *f,
 
   TGraph *fGSMA = GetSMA(f, fInterval, "close");
 
-  TGraph *fGUpperBand = new TGraph();
-  TGraph *fGLowerBand = new TGraph();
+  TGraphErrors *fGBB = new TGraphErrors();
 
   Float_t Price[fInterval];
 
@@ -365,28 +364,24 @@ TMultiGraph *GetBollingerBands(TFile *f,
 
     if ( fEvent >= fInterval ) {
       Double_t x1, y1;
-      Double_t ub, lb;
+      Double_t b;
       fGSMA->GetPoint(fEvent-fInterval,x1,y1);
-      ub = y1 + fW*TMath::StdDev(fInterval,&Price[0]);
-      lb = y1 - fW*TMath::StdDev(fInterval,&Price[0]);
-      fGUpperBand->SetPoint(fGUpperBand->GetN(),x1,ub);
-      fGLowerBand->SetPoint(fGLowerBand->GetN(),x1,lb);
+      b = fW*TMath::StdDev(fInterval,&Price[0]);
+      Int_t n = fGBB->GetN();
+      fGBB->SetPoint(n,x1,y1);
+      fGBB->SetPointError(n,1.,b);
     }
-
-    fGSMA->SetLineColor(kBlue);
-    fGUpperBand->SetLineColor(kGreen);
-    fGLowerBand->SetLineColor(kRed);
-
+    
     fEvent++;
   }
+  fGBB->GetXaxis()->SetTimeDisplay(1);
+  fGBB->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGBB->GetXaxis()->SetTimeOffset(0,"gmt");
+  fGBB->SetFillColor(6);
+  fGBB->SetFillStyle(3003);
 
-  TMultiGraph *fBB = new TMultiGraph();
-  fBB->Add(fGSMA);
-  fBB->Add(fGUpperBand);
-  fBB->Add(fGLowerBand);
-  fBB->SetTitle(Form("%s BollingerBands(%d);Date;BB",gSymbol.Data(),fInterval));  
-    
-  return fBB;
+  fGBB->SetTitle(Form("%s BollingerBands(%d);Date;BB",gSymbol.Data(),fInterval));  
+  return fGBB;
 
 }
 
@@ -410,8 +405,7 @@ TGraph *GetVolume(TFile *f){
     fGVol->SetPoint(fGVol->GetN(),fDate.Convert(),*fVol);
 
   }
-  fGVol->SetDrawOption("AB");
-  fGVol->SetTitle(Form("%s Volume;Date;SMA",gSymbol.Data()));
+  fGVol->SetTitle(Form("%s Volume;Date;Volume",gSymbol.Data()));
   fGVol->GetXaxis()->SetTimeDisplay(1);
   fGVol->GetXaxis()->SetTimeFormat("%Y/%m/%d");
   fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
@@ -459,12 +453,8 @@ Int_t Analyzer( TString fSymbol = "SPY",
   fGAroon->Draw("al");
 
   c1->cd(4);
-  TMultiGraph *fGBB = GetBollingerBands(f,20,2.0);
-  fGBB->Draw("AL");
-  fGBB->GetXaxis()->SetTimeDisplay(1);
-  fGBB->GetXaxis()->SetTimeFormat("%Y/%m/%d");
-  fGBB->GetXaxis()->SetTimeOffset(0,"gmt");
-  
+  TGraphErrors *fGBB = GetBollingerBands(f,20,2.0);
+  fGBB->Draw("a3C");  
 
   c1->cd(5);
   TGraph *fGVol = GetVolume(f);
@@ -476,3 +466,7 @@ Int_t Analyzer( TString fSymbol = "SPY",
   return 0;
 
 }
+////////////////////////////////////////////////////////////////////////////////
+
+
+  
