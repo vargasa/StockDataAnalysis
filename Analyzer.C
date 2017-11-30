@@ -461,6 +461,10 @@ Int_t Analyzer( TString fSymbol = "SPY",
   c1->cd(4);
   TMultiGraph *fGBB = GetBollingerBands(f,20,2.0);
   fGBB->Draw("AL");
+  fGBB->GetXaxis()->SetTimeDisplay(1);
+  fGBB->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGBB->GetXaxis()->SetTimeOffset(0,"gmt");
+  
 
   c1->cd(5);
   TGraph *fGVol = GetVolume(f);
