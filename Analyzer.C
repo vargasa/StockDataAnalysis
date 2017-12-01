@@ -387,14 +387,18 @@ TGraphErrors *GetBollingerBands(TFile *f,
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Volume Graph
-TGraph *GetVolume(TFile *f){
+TMultiGraph *GetVolume(TFile *f){
   
   TTreeReader fReader(gSymbol, f);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Int_t> fVol(fReader,"fVolume");
+  TTreeReaderValue<Float_t> fO(fReader,"fOpen");
+  TTreeReaderValue<Float_t> fC(fReader,"fClose");
 
   TDatime fDate;
-  TGraph *fGVol = new TGraph();
+  TMultiGraph *fMGVol = new TMultiGraph();
+  TGraph *fGVolG = new TGraph();
+  TGraph *fGVolR = new TGraph();
   
   while(fReader.Next()){
     
@@ -402,16 +406,77 @@ TGraph *GetVolume(TFile *f){
     fSDt.Append(" 00:00:00");
     fDate = TDatime(fSDt);
 
-    fGVol->SetPoint(fGVol->GetN(),fDate.Convert(),*fVol);
+    if(*fO < *fC){
+      fGVolG->SetPoint(fGVolG->GetN(),fDate.Convert(),*fVol);
+    } else {
+      fGVolR->SetPoint(fGVolR->GetN(),fDate.Convert(),*fVol);
+    }
 
   }
-  fGVol->SetTitle(Form("%s Volume;Date;Volume",gSymbol.Data()));
-  fGVol->GetXaxis()->SetTimeDisplay(1);
-  fGVol->GetXaxis()->SetTimeFormat("%Y/%m/%d");
-  fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
-  return fGVol;
+  fGVolG->SetFillColor(kGreen);
+  fGVolR->SetFillColor(kRed);
+  fMGVol->Add(fGVolG);
+  fMGVol->Add(fGVolR);
+  fMGVol->SetTitle(Form("%s Volume;Date;Volume",gSymbol.Data()));
+  return fMGVol;
   
 }
+
+////////////////////////////////////////////////////////////////////////////////
+/// CandleStick
+TMultiGraph *GetCandleStick(TFile *f){
+
+  TTreeReader fReader(gSymbol, f);
+  TTreeReaderArray<char> fDt(fReader,"fDate");
+  TTreeReaderValue<Float_t> fO(fReader,"fOpen");
+  TTreeReaderValue<Float_t> fC(fReader,"fClose");
+  TTreeReaderValue<Float_t> fH(fReader,"fHigh");
+  TTreeReaderValue<Float_t> fL(fReader,"fLow");
+
+  TDatime fDate;
+
+  TMultiGraph *fGCandle = new TMultiGraph();
+  TGraphErrors *fGOCG = new TGraphErrors();
+  TGraphErrors *fGOCR = new TGraphErrors();
+  TGraphAsymmErrors *fGHL = new TGraphAsymmErrors();
+  
+  while(fReader.Next()){
+    
+    TString fSDt = static_cast<char*>(fDt.GetAddress());
+    fSDt.Append(" 00:00:00");
+    fDate = TDatime(fSDt);
+
+    Double_t mdl = (*fO + *fC)/2.;
+    Double_t l1 = TMath::Abs(*fO - mdl);
+
+    if (*fO < *fC) { 
+      Int_t n = fGOCG->GetN();
+      fGOCG->SetPoint(n,fDate.Convert(), mdl);
+      // Bar Size only working for weekly charts
+      fGOCG->SetPointError(n,2e5,l1);
+    } else {
+      Int_t n = fGOCR->GetN();
+      fGOCR->SetPoint(n,fDate.Convert(), mdl);
+      fGOCR->SetPointError(n,2e5,l1);
+    }
+    Int_t n = fGHL->GetN();
+    fGHL->SetPoint(n,fDate.Convert(), mdl);
+    Double_t l = mdl - *fL;
+    Double_t h = *fH - mdl;
+    fGHL->SetPointError(n,0.,0.,l,h);
+  }
+  
+  fGOCR->SetFillColor(kRed);
+  fGOCG->SetFillColor(kGreen);
+  fGCandle->Add(fGHL,"E");
+  fGCandle->Add(fGOCG,"E2");
+  fGCandle->Add(fGOCR,"E2");
+  fGCandle->SetTitle(Form("%s CandleStick;Date;Price",gSymbol.Data()));
+  
+  return fGCandle;
+
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Main Function
@@ -457,9 +522,20 @@ Int_t Analyzer( TString fSymbol = "SPY",
   fGBB->Draw("a3C");  
 
   c1->cd(5);
-  TGraph *fGVol = GetVolume(f);
+  TMultiGraph *fGVol = GetVolume(f);
   fGVol->Draw("AB");
-  
+  fGVol->GetXaxis()->SetTimeDisplay(1);
+  fGVol->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
+
+
+  c1->cd(6);
+  TMultiGraph *fGCandle = GetCandleStick(f);
+  fGCandle->Draw("A");
+  fGCandle->GetXaxis()->SetTimeDisplay(1);
+  fGCandle->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGCandle->GetXaxis()->SetTimeOffset(0,"gmt");
+
      
   c1->Print(fSymbol+".png");
 
