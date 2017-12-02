@@ -34,16 +34,21 @@ TFile *GetData( TString fSymbol,
 	       TDatime fStartDate,
 	       TDatime fEndDate){
   // 1d, 1wk, 1mo
-  Int_t ans = gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"'");
+  
+  TFile *f = new TFile("SymbolsDB.root","UPDATE");
+  Int_t ans = gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"' /tmp/");
   if (ans == 0) {
-    TFile *f = new TFile(fSymbol+".root","RECREATE");
+    if(f->GetListOfKeys()->Contains(fSymbol.Data())){
+      f->Delete(fSymbol+";1");
+    }
     TTree *tree = new TTree(fSymbol,"From CSV File");
-    tree->ReadFile(fSymbol+".csv","fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
+    tree->ReadFile("/tmp/"+fSymbol+".csv","fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
     f->Write();
-    return f;
   } else {
     printf("\nData Download was unsucessfull\n");
+    gApplication->Terminate();
   }
+  return f;
   
 }
 ////////////////////////////////////////////////////////////////////////////////
@@ -325,6 +330,8 @@ Int_t HiLoAnalysis(TFile *f){
   TF1 *fGausHH = new TF1("GausHH","gaus");
   fHDiffHH->Fit("GausHH","QM+");
   Float_t fHPriceHH = fPrevH*(1 + fGausHH->GetParameter(1));
+  printf("Next High price: %f\n",fHPriceHH);
+  fHDiffHH->Draw();
   
   return 0;
   
