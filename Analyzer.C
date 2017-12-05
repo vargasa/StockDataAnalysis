@@ -382,7 +382,7 @@ TGraphErrors *GetBollingerBands(TFile *f,
     fEvent++;
   }
   fGBB->GetXaxis()->SetTimeDisplay(1);
-  fGBB->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGBB->GetXaxis()->SetTimeFormat("%b/%d/%y");
   fGBB->GetXaxis()->SetTimeOffset(0,"gmt");
   fGBB->SetFillColor(6);
   fGBB->SetFillStyle(3003);
@@ -504,48 +504,51 @@ Int_t Analyzer( TString fSymbol = "SPY",
   HiLoAnalysis(f);
   
   TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
-  c1->Divide(3,2);
+  TPad *pad1 = new TPad("pad1", "p1",0.0,0.0,1.0,1.0);
+  TPad *pad2 = new TPad("pad2", "p2",0.0,0.1,1.0,0.2);
+  pad2->SetFillStyle(4000); //will be transparent
+  pad2->SetFrameFillStyle(0);
+  pad1->Draw();
+  pad2->Draw();
+
+  pad1->cd();
+  // fGBB Draws Axis and Set Time Scale at XRange
+  TGraphErrors *fGBB = GetBollingerBands(f,20,2.0);
+  TDatime tStart = TDatime(2016,01,01,00,00,00);
+  TDatime tEnd = TDatime(2017,12,07,00,00,00);
+  fGBB->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+  fGBB->Draw("A3C");
+
+  TMultiGraph *fGCandle = GetCandleStick(f);
+  fGCandle->Draw();
   
-  c1->cd(1);
   TGraph *fGSlowSMA = GetSMA(f, 10,"close");
   fGSlowSMA->SetLineColor(kBlue);
-  fGSlowSMA->Draw("AL");
+  fGSlowSMA->Draw("SAME");
   TGraph *fGFastSMA = GetSMA(f, 6, "close");
   fGFastSMA->SetLineColor(kGreen);
-  fGFastSMA->Draw("same");
+  fGFastSMA->Draw("SAME");
 
-  c1->cd(2);
-  TGraph *fGAroonUp = GetAroonUp(f,25);
-  fGAroonUp->Draw("al");
-  TGraph *fGAroonDown = GetAroonDown(f,25);
-  fGAroonDown->Draw("same");
-
-  c1->cd(3);
-  TGraph *fGAroon = GetAroon(f,25);
-  fGAroon->Draw("al");
-
-  c1->cd(4);
-  TGraphErrors *fGBB = GetBollingerBands(f,20,2.0);
-  fGBB->Draw("a3C");  
-
-  c1->cd(5);
-  TMultiGraph *fGVol = GetVolume(f);
-  fGVol->Draw("AB");
-  fGVol->GetXaxis()->SetTimeDisplay(1);
-  fGVol->GetXaxis()->SetTimeFormat("%Y/%m/%d");
-  fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
-
-
-  c1->cd(6);
-  TMultiGraph *fGCandle = GetCandleStick(f);
-  fGCandle->Draw("A");
-  fGCandle->GetXaxis()->SetTimeDisplay(1);
-  fGCandle->GetXaxis()->SetTimeFormat("%Y/%m/%d");
-  fGCandle->GetXaxis()->SetTimeOffset(0,"gmt");
-
-     
+  pad2->cd();
+  
+  // TMultiGraph *fGVol = GetVolume(f);
+  // fGVol->Draw("AB");
+  // fGVol->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+  // fGVol->GetXaxis()->SetTimeDisplay(1);
+  // fGVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  // fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
+ 
   c1->Print(fSymbol+".png");
 
+  // TGraph *fGAroonUp = GetAroonUp(f,25);
+  // fGAroonUp->Draw("al");
+  // TGraph *fGAroonDown = GetAroonDown(f,25);
+  // fGAroonDown->Draw("same");
+  
+  // TGraph *fGAroon = GetAroon(f,25);
+  // fGAroon->Draw("al");
+
+  
   return 0;
 
 }
