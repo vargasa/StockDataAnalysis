@@ -538,7 +538,7 @@ Int_t Analyzer( TString fSymbol = "SPY",
   // fGVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
   // fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
  
-  c1->Print(fSymbol+".png");
+  c1->Print("Output/"+fSymbol+".png");
 
   // TGraph *fGAroonUp = GetAroonUp(f,25);
   // fGAroonUp->Draw("al");
