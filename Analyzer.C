@@ -514,22 +514,53 @@ Int_t Analyzer( TString fSymbol = "SPY",
   pad1->cd();
   // fGBB Draws Axis and Set Time Scale at XRange
   TGraphErrors *fGBB = GetBollingerBands(f,20,2.0);
-  TDatime tStart = TDatime(2016,01,01,00,00,00);
+  TDatime tStart = TDatime(2017,01,01,00,00,00);
   TDatime tEnd = TDatime(2017,12,07,00,00,00);
   fGBB->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
   fGBB->Draw("A3C");
-
+  
   TMultiGraph *fGCandle = GetCandleStick(f);
   fGCandle->Draw();
   
   TGraph *fGSlowSMA = GetSMA(f, 10,"close");
+  fGSlowSMA->SetLineWidth(3);
   fGSlowSMA->SetLineColor(kBlue);
   fGSlowSMA->Draw("SAME");
   TGraph *fGFastSMA = GetSMA(f, 6, "close");
+  fGFastSMA->SetLineWidth(3);
   fGFastSMA->SetLineColor(kGreen);
   fGFastSMA->Draw("SAME");
 
-  pad2->cd();
+  // Look for SMA Crossovers
+  Int_t tp = 4; //last tp time periods (at least 3)
+  Float_t delta = 0.01; // Difference as percentage
+  Double_t prs[tp];
+  Double_t prf[tp];
+  for (Int_t i = 0; i < tp; i++) {
+    Double_t y1,y2,t;
+    fGSlowSMA->GetPoint(fGSlowSMA->GetN()-1 - i,t,y1);
+    fGFastSMA->GetPoint(fGFastSMA->GetN()-1 - i,t,y2);
+    prs[tp-i-1] = y1;
+    prf[tp-i-1] = y2;
+  }
+
+  for (Int_t i = 1; i < tp-1; i++) {
+
+    Double_t prev = prf[i-1]-prs[i-1];
+    Double_t aft = prf[i+1]-prs[i+1];
+    if ( aft  > 0 &&  prev < 0 ) {
+      printf("F_SMA Crossover for %s\n", gSymbol.Data());
+      printf("After: %.2f - Prev: %.2f", aft, prev);
+      c1->Print("Output/"+fSymbol+"_F_SMA_Crossover.png");
+      break;
+    } else if (aft < 0 && prev > 0)  {
+      printf("S_SMA Crossover for %s\n", gSymbol.Data());
+      //c1->Print("Output/"+fSymbol+"_S_SMA_Crossover.png");
+      break;
+    }
+  }
+  
+  // pad2->cd();
   
   // TMultiGraph *fGVol = GetVolume(f);
   // fGVol->Draw("AB");
@@ -537,8 +568,6 @@ Int_t Analyzer( TString fSymbol = "SPY",
   // fGVol->GetXaxis()->SetTimeDisplay(1);
   // fGVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
   // fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
- 
-  c1->Print("Output/"+fSymbol+".png");
 
   // TGraph *fGAroonUp = GetAroonUp(f,25);
   // fGAroonUp->Draw("al");
@@ -555,4 +584,3 @@ Int_t Analyzer( TString fSymbol = "SPY",
 ////////////////////////////////////////////////////////////////////////////////
 
 
-  
