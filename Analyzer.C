@@ -456,15 +456,26 @@ TMultiGraph *GetCandleStick(TFile *f){
     Double_t mdl = (*fO + *fC)/2.;
     Double_t l1 = TMath::Abs(*fO - mdl);
 
+    // Definition of the candlestick width
+    // Period of time in seconds
+    Double_t twidth = 86400./3.;
+    if (gFreq.Contains("1d")) {
+      twidth = 86400./3.;
+    } else if(gFreq.Contains("1wk")) {
+      twidth = 604800./3.;
+    } else if(gFreq.Contains("1mo")) {
+      twidth = 2.628e6/3.;
+    }
+
     if (*fO < *fC) { 
       Int_t n = fGOCG->GetN();
       fGOCG->SetPoint(n,fDate.Convert(), mdl);
       // Bar Size only working for weekly charts
-      fGOCG->SetPointError(n,2e5,l1);
+      fGOCG->SetPointError(n,twidth,l1);
     } else {
       Int_t n = fGOCR->GetN();
       fGOCR->SetPoint(n,fDate.Convert(), mdl);
-      fGOCR->SetPointError(n,2e5,l1);
+      fGOCR->SetPointError(n,twidth,l1);
     }
     Int_t n = fGHL->GetN();
     fGHL->SetPoint(n,fDate.Convert(), mdl);
@@ -494,6 +505,7 @@ Int_t Analyzer( TString fSymbol = "SPY",
 
   gSymbol = fSymbol;
   gFreq = fFreq;
+  gFreq.ToLower();
   gStartDate = fStartDate;
   gEndDate = fEndDate;
   
