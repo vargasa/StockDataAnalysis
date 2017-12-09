@@ -391,10 +391,28 @@ TGraphErrors *GetBollingerBands(TFile *f,
   return fGBB;
 
 }
+////////////////////////////////////////////////////////////////////////////////
+/// TIme Widt for Charts
+Double_t GetTimeWidth(TString fFreq = "1wk"){
+  
+  // Definition of the candlestick width
+  // Period of time in seconds
+  fFreq.ToLower();
+  Double_t twidth = 86400.;
+  if (fFreq.Contains("1d")) {
+    twidth = 86400.;
+  } else if(fFreq.Contains("1wk")) {
+    twidth = 604800.;
+  } else if(fFreq.Contains("1mo")) {
+    twidth = 2.628e6;
+  }
+  
+  return twidth;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Volume Graph
-TMultiGraph *GetVolume(TFile *f){
+THStack *GetVolume(TFile *f){
   
   TTreeReader fReader(gSymbol, f);
   TTreeReaderArray<char> fDt(fReader,"fDate");
@@ -403,9 +421,13 @@ TMultiGraph *GetVolume(TFile *f){
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
 
   TDatime fDate;
-  TMultiGraph *fMGVol = new TMultiGraph();
-  TGraph *fGVolG = new TGraph();
-  TGraph *fGVolR = new TGraph();
+  
+  THStack *fHSVol = new THStack();
+
+  Int_t nbins = TMath::Nint((Double_t)(gEndDate.Convert() - gStartDate.Convert()) / GetTimeWidth(gFreq));
+  
+  TH1I *fHVolG = new TH1I("fHVolG","fHVolG",nbins,gStartDate.Convert(),gEndDate.Convert());
+  TH1I *fHVolR = new TH1I("fHVolR","fHVolR",nbins,gStartDate.Convert(),gEndDate.Convert());
   
   while(fReader.Next()){
     
@@ -414,18 +436,18 @@ TMultiGraph *GetVolume(TFile *f){
     fDate = TDatime(fSDt);
 
     if(*fO < *fC){
-      fGVolG->SetPoint(fGVolG->GetN(),fDate.Convert(),*fVol);
+      fHVolG->Fill(fDate.Convert(),*fVol);
     } else {
-      fGVolR->SetPoint(fGVolR->GetN(),fDate.Convert(),*fVol);
+      fHVolR->Fill(fDate.Convert(),*fVol);
     }
 
   }
-  fGVolG->SetFillColor(kGreen);
-  fGVolR->SetFillColor(kRed);
-  fMGVol->Add(fGVolG);
-  fMGVol->Add(fGVolR);
-  fMGVol->SetTitle(Form("%s Volume;Date;Volume",gSymbol.Data()));
-  return fMGVol;
+  fHVolG->SetFillColor(kGreen);
+  fHVolR->SetFillColor(kRed);
+  fHSVol->Add(fHVolG);
+  fHSVol->Add(fHVolR);
+  fHSVol->SetTitle(Form("%s Volume;Date;Volume",gSymbol.Data()));
+  return fHSVol;
   
 }
 
@@ -455,17 +477,8 @@ TMultiGraph *GetCandleStick(TFile *f){
 
     Double_t mdl = (*fO + *fC)/2.;
     Double_t l1 = TMath::Abs(*fO - mdl);
-
-    // Definition of the candlestick width
-    // Period of time in seconds
-    Double_t twidth = 86400./3.;
-    if (gFreq.Contains("1d")) {
-      twidth = 86400./3.;
-    } else if(gFreq.Contains("1wk")) {
-      twidth = 604800./3.;
-    } else if(gFreq.Contains("1mo")) {
-      twidth = 2.628e6/3.;
-    }
+    
+    Double_t twidth = GetTimeWidth(gFreq) * 0.33;
 
     if (*fO < *fC) { 
       Int_t n = fGOCG->GetN();
@@ -517,13 +530,14 @@ Int_t Analyzer( TString fSymbol = "SPY",
   
   TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
   TPad *pad1 = new TPad("pad1", "p1",0.0,0.0,1.0,1.0);
-  TPad *pad2 = new TPad("pad2", "p2",0.0,0.1,1.0,0.2);
+  TPad *pad2 = new TPad("pad2", "p2",0.0,0.1,1.0,0.25);
   pad2->SetFillStyle(4000); //will be transparent
   pad2->SetFrameFillStyle(0);
   pad1->Draw();
   pad2->Draw();
 
   pad1->cd();
+  pad1->SetGrid();
   // fGBB Draws Axis and Set Time Scale at XRange
   TGraphErrors *fGBB = GetBollingerBands(f,20,2.0);
   TDatime tStart = TDatime(2017,01,01,00,00,00);
@@ -572,14 +586,14 @@ Int_t Analyzer( TString fSymbol = "SPY",
     }
   }
   
-  // pad2->cd();
+  pad2->cd();
   
-  // TMultiGraph *fGVol = GetVolume(f);
-  // fGVol->Draw("AB");
-  // fGVol->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
-  // fGVol->GetXaxis()->SetTimeDisplay(1);
-  // fGVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
-  // fGVol->GetXaxis()->SetTimeOffset(0,"gmt");
+  THStack *fHSVol = GetVolume(f);
+  fHSVol->Draw("HIST Y+");
+  fHSVol->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+  fHSVol->GetXaxis()->SetTimeDisplay(1);
+  fHSVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  fHSVol->GetXaxis()->SetTimeOffset(0,"gmt");
 
   // TGraph *fGAroonUp = GetAroonUp(f,25);
   // fGAroonUp->Draw("al");
