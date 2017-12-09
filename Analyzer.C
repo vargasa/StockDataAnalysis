@@ -556,6 +556,15 @@ Int_t Analyzer( TString fSymbol = "SPY",
   fGFastSMA->SetLineWidth(3);
   fGFastSMA->SetLineColor(kGreen);
   fGFastSMA->Draw("SAME");
+  
+  pad2->cd();
+  
+  THStack *fHSVol = GetVolume(f);
+  fHSVol->Draw("HIST Y+");
+  fHSVol->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+  fHSVol->GetXaxis()->SetTimeDisplay(1);
+  fHSVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  fHSVol->GetXaxis()->SetTimeOffset(0,"gmt");
 
   // Look for SMA Crossovers
   Int_t tp = 4; //last tp time periods (at least 3)
@@ -585,15 +594,6 @@ Int_t Analyzer( TString fSymbol = "SPY",
       break;
     }
   }
-  
-  pad2->cd();
-  
-  THStack *fHSVol = GetVolume(f);
-  fHSVol->Draw("HIST Y+");
-  fHSVol->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
-  fHSVol->GetXaxis()->SetTimeDisplay(1);
-  fHSVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
-  fHSVol->GetXaxis()->SetTimeOffset(0,"gmt");
 
   // TGraph *fGAroonUp = GetAroonUp(f,25);
   // fGAroonUp->Draw("al");
