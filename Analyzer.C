@@ -444,9 +444,9 @@ THStack *GetVolume(TFile *f){
   }
   fHVolG->SetFillColor(kGreen);
   fHVolR->SetFillColor(kRed);
-  fHSVol->Add(fHVolG);
-  fHSVol->Add(fHVolR);
-  fHSVol->SetTitle(Form("%s Volume;Date;Volume",gSymbol.Data()));
+  fHSVol->Add(fHVolG,"HIST");
+  fHSVol->Add(fHVolR,"HIST");
+  //fHSVol->SetTitle(Form("%s Volume;Date;Volume",gSymbol.Data()));
   return fHSVol;
   
 }
@@ -507,7 +507,82 @@ TMultiGraph *GetCandleStick(TFile *f){
   return fGCandle;
 
 }
-
+////////////////////////////////////////////////////////////////////////////////
+/// Simple Moving Average Crossoverf finder, fPeriod terms behind the actual term
+/// are scanned for a crossover
+Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5){
+   
+   TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
+   TPad *pad1 = new TPad("pad1", "p1",0.0,0.15,1.0,1.0);
+   TPad *pad2 = new TPad("pad2", "p2",0.0,0.0,1.0,0.15);
+   pad2->SetFillStyle(4000); //will be transparent
+   pad2->SetFrameFillStyle(0);
+   pad1->Draw();
+   pad2->Draw();
+   pad2->SetGrid();
+   
+   pad1->cd();
+   pad1->SetGrid();
+   
+   TMultiGraph *fGCandle = GetCandleStick(f);
+   
+   // fGBB Draws Axis and Set Time Scale at XRange
+   TGraphErrors *fGBB = GetBollingerBands(f,20,2.0);
+   fGCandle->Add(fGBB,"A3C");
+   
+   TGraph *fGSlowSMA = GetSMA(f, fSlow,"close");
+   fGSlowSMA->SetLineWidth(3);
+   fGSlowSMA->SetLineColor(kBlue);
+   fGCandle->Add(fGSlowSMA);
+   TGraph *fGFastSMA = GetSMA(f, fFast, "close");
+   fGFastSMA->SetLineWidth(3);
+   fGFastSMA->SetLineColor(kGreen);
+   fGCandle->Add(fGFastSMA);
+   fGCandle->Draw("A");
+   TDatime tStart = TDatime(2017,01,01,00,00,00);
+   TDatime tEnd = TDatime(2017,12,07,00,00,00);
+   fGCandle->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+   fGCandle->GetXaxis()->SetTimeDisplay(1);
+   fGCandle->GetXaxis()->SetTimeFormat("%b/%d/%y");
+   fGCandle->GetXaxis()->SetTimeOffset(0,"gmt");
+   
+   pad2->cd();
+   
+   THStack *fHSVol = GetVolume(f);
+   fHSVol->Draw("Y+");
+   //fHSVol->GetYaxis()->SetTickSize(0.);
+   fHSVol->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+   fHSVol->GetXaxis()->SetTimeDisplay(1);
+   fHSVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
+   fHSVol->GetXaxis()->SetTimeOffset(0,"gmt");
+ 
+   // Look for SMA Crossovers
+   Double_t prs[fPeriod];
+   Double_t prf[fPeriod];
+   for (Int_t i = 0; i < fPeriod; i++) {
+     Double_t y1,y2,t;
+     fGSlowSMA->GetPoint(fGSlowSMA->GetN()-1 - i,t,y1);
+     fGFastSMA->GetPoint(fGFastSMA->GetN()-1 - i,t,y2);
+     prs[fPeriod-i-1] = y1;
+     prf[fPeriod-i-1] = y2;
+   }
+ 
+   for (Int_t i = 1; i < fPeriod-1; i++) {
+ 
+     Double_t prev = prf[i-1]-prs[i-1];
+     Double_t aft = prf[i+1]-prs[i+1];
+     if ( aft  > 0 &&  prev < 0 ) {
+       printf("F_SMA Crossover for %s\n", gSymbol.Data());
+       printf("After: %.2f - Prev: %.2f", aft, prev);
+       c1->Print("Output/"+gSymbol+"_F_SMA_Crossover.png");
+       break;
+     } else if (aft < 0 && prev > 0)  {
+       printf("S_SMA Crossover for %s\n", gSymbol.Data());
+       break;
+     }
+   }
+   return 0;
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Main Function
@@ -524,77 +599,10 @@ Int_t Analyzer( TString fSymbol = "SPY",
   
   TFile *f = GetData(fSymbol, fFreq, fStartDate, fEndDate);
   f->ReOpen("READ");
-  gSymbol = fSymbol;
 
-  HiLoAnalysis(f);
+  //HiLoAnalysis(f);
+  SMACrossoverScreener(f,6,10,5);
   
-  TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
-  TPad *pad1 = new TPad("pad1", "p1",0.0,0.0,1.0,1.0);
-  TPad *pad2 = new TPad("pad2", "p2",0.0,0.1,1.0,0.25);
-  pad2->SetFillStyle(4000); //will be transparent
-  pad2->SetFrameFillStyle(0);
-  pad1->Draw();
-  pad2->Draw();
-
-  pad1->cd();
-  pad1->SetGrid();
-  // fGBB Draws Axis and Set Time Scale at XRange
-  TGraphErrors *fGBB = GetBollingerBands(f,20,2.0);
-  TDatime tStart = TDatime(2017,01,01,00,00,00);
-  TDatime tEnd = TDatime(2017,12,07,00,00,00);
-  fGBB->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
-  fGBB->Draw("A3C");
-  
-  TMultiGraph *fGCandle = GetCandleStick(f);
-  fGCandle->Draw();
-  
-  TGraph *fGSlowSMA = GetSMA(f, 10,"close");
-  fGSlowSMA->SetLineWidth(3);
-  fGSlowSMA->SetLineColor(kBlue);
-  fGSlowSMA->Draw("SAME");
-  TGraph *fGFastSMA = GetSMA(f, 6, "close");
-  fGFastSMA->SetLineWidth(3);
-  fGFastSMA->SetLineColor(kGreen);
-  fGFastSMA->Draw("SAME");
-  
-  pad2->cd();
-  
-  THStack *fHSVol = GetVolume(f);
-  fHSVol->Draw("HIST Y+");
-  fHSVol->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
-  fHSVol->GetXaxis()->SetTimeDisplay(1);
-  fHSVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
-  fHSVol->GetXaxis()->SetTimeOffset(0,"gmt");
-
-  // Look for SMA Crossovers
-  Int_t tp = 4; //last tp time periods (at least 3)
-  Float_t delta = 0.01; // Difference as percentage
-  Double_t prs[tp];
-  Double_t prf[tp];
-  for (Int_t i = 0; i < tp; i++) {
-    Double_t y1,y2,t;
-    fGSlowSMA->GetPoint(fGSlowSMA->GetN()-1 - i,t,y1);
-    fGFastSMA->GetPoint(fGFastSMA->GetN()-1 - i,t,y2);
-    prs[tp-i-1] = y1;
-    prf[tp-i-1] = y2;
-  }
-
-  for (Int_t i = 1; i < tp-1; i++) {
-
-    Double_t prev = prf[i-1]-prs[i-1];
-    Double_t aft = prf[i+1]-prs[i+1];
-    if ( aft  > 0 &&  prev < 0 ) {
-      printf("F_SMA Crossover for %s\n", gSymbol.Data());
-      printf("After: %.2f - Prev: %.2f", aft, prev);
-      c1->Print("Output/"+fSymbol+"_F_SMA_Crossover.png");
-      break;
-    } else if (aft < 0 && prev > 0)  {
-      printf("S_SMA Crossover for %s\n", gSymbol.Data());
-      //c1->Print("Output/"+fSymbol+"_S_SMA_Crossover.png");
-      break;
-    }
-  }
-
   // TGraph *fGAroonUp = GetAroonUp(f,25);
   // fGAroonUp->Draw("al");
   // TGraph *fGAroonDown = GetAroonDown(f,25);
@@ -608,5 +616,5 @@ Int_t Analyzer( TString fSymbol = "SPY",
 
 }
 ////////////////////////////////////////////////////////////////////////////////
-
+ 
 
