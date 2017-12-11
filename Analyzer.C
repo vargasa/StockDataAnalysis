@@ -511,7 +511,13 @@ TMultiGraph *GetCandleStick(TFile *f){
 /// Simple Moving Average Crossoverf finder, fPeriod terms behind the actual term
 /// are scanned for a crossover
 Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5){
-   
+
+  TFile *fOut = new TFile("SMACrossover.root","UPDATE");
+  if(fOut->GetListOfKeys()->Contains(gSymbol.Data())){
+    fOut->Delete(gSymbol+";1");
+    fOut->Delete(gSymbol+"_VOL;1");
+  }
+  
    TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
    TPad *pad1 = new TPad("pad1", "p1",0.0,0.15,1.0,1.0);
    TPad *pad2 = new TPad("pad2", "p2",0.0,0.0,1.0,0.15);
@@ -571,16 +577,22 @@ Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fP
  
      Double_t prev = prf[i-1]-prs[i-1];
      Double_t aft = prf[i+1]-prs[i+1];
+
      if ( aft  > 0 &&  prev < 0 ) {
        printf("F_SMA Crossover for %s\n", gSymbol.Data());
        printf("After: %.2f - Prev: %.2f", aft, prev);
-       c1->Print("Output/"+gSymbol+"_F_SMA_Crossover.png");
+       fGCandle->Write(gSymbol.Data());
+       fHSVol->Write(Form("%s%s",gSymbol.Data(),"_VOL"));
        break;
      } else if (aft < 0 && prev > 0)  {
        printf("S_SMA Crossover for %s\n", gSymbol.Data());
        break;
      }
    }
+   
+   
+   fOut->Close();
+   
    return 0;
 }
 
