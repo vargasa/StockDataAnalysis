@@ -580,9 +580,7 @@ Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fP
 
      if ( aft  > 0 &&  prev < 0 ) {
        printf("F_SMA Crossover for %s\n", gSymbol.Data());
-       printf("After: %.2f - Prev: %.2f", aft, prev);
-       fGCandle->Write(gSymbol.Data());
-       fHSVol->Write(Form("%s%s",gSymbol.Data(),"_VOL"));
+       c1->Write(gSymbol.Data());
        break;
      } else if (aft < 0 && prev > 0)  {
        printf("S_SMA Crossover for %s\n", gSymbol.Data());
