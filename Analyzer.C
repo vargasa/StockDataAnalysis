@@ -508,9 +508,10 @@ TMultiGraph *GetCandleStick(TFile *f){
 
 }
 ////////////////////////////////////////////////////////////////////////////////
-/// Simple Moving Average Crossoverf finder, fPeriod terms behind the actual term
-/// are scanned for a crossover
-Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5){
+/// Simple Moving Average Crossover finder, fPeriod terms behind the actual term
+/// are scanned for a crossover with a minimum relative difference of fDelta
+/// The difference is computed between the last data point available and the crossover
+Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5, Float_t fDelta = 0.00){
 
   TFile *fOut = new TFile("SMACrossover.root","UPDATE");
   if(fOut->GetListOfKeys()->Contains(gSymbol.Data())){
@@ -579,8 +580,11 @@ Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fP
      Double_t aft = prf[i+1]-prs[i+1];
 
      if ( aft  > 0 &&  prev < 0 ) {
-       printf("F_SMA Crossover for %s\n", gSymbol.Data());
-       c1->Write(gSymbol.Data());
+       Float_t diff = (prf[fPeriod-1] - prs[i])/prs[i];
+       if ( diff > fDelta ){
+	 printf("F_SMA Crossover for %s. Delta: %.2f%%\n", gSymbol.Data(), diff*100.);
+	 c1->Write(gSymbol.Data());
+       }
        break;
      } else if (aft < 0 && prev > 0)  {
        printf("S_SMA Crossover for %s\n", gSymbol.Data());
@@ -611,7 +615,7 @@ Int_t Analyzer( TString fSymbol = "SPY",
   f->ReOpen("READ");
 
   //HiLoAnalysis(f);
-  SMACrossoverScreener(f,6,10,5);
+  SMACrossoverScreener(f,6,10,5,0.04);
   
   // TGraph *fGAroonUp = GetAroonUp(f,25);
   // fGAroonUp->Draw("al");
