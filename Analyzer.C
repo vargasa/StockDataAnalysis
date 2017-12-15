@@ -30,24 +30,30 @@ Int_t GetIndex( Int_t fEvent, Int_t fInterval){
 /// Get data from Yahoo! Finance API using getData.sh Shell Script
 
 TFile *GetData( TString fSymbol,
-	       TString fFreq,
-	       TDatime fStartDate,
-	       TDatime fEndDate){
+		TString fFreq,
+		TDatime fStartDate,
+		TDatime fEndDate,
+		Bool_t fDownload = true
+		){
   // 1d, 1wk, 1mo
   
   TFile *f = new TFile("SymbolsDB.root","UPDATE");
-  Int_t ans = gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"' /tmp/");
-  if (ans == 0) {
-    if(f->GetListOfKeys()->Contains(fSymbol.Data())){
-      f->Delete(fSymbol+";1");
+  
+  if (fDownload) {
+    Int_t ans = gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"' /tmp/");
+    if (ans == 0) {
+      if(f->GetListOfKeys()->Contains(fSymbol.Data())){
+	f->Delete(fSymbol+";1");
+      }
+      TTree *tree = new TTree(fSymbol,"From CSV File");
+      tree->ReadFile("/tmp/"+fSymbol+".csv","fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
+      tree->Write();
+    } else {
+      printf("\nData Download was unsucessfull\n");
+      gApplication->Terminate();
     }
-    TTree *tree = new TTree(fSymbol,"From CSV File");
-    tree->ReadFile("/tmp/"+fSymbol+".csv","fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
-    f->Write();
-  } else {
-    printf("\nData Download was unsucessfull\n");
-    gApplication->Terminate();
   }
+
   return f;
   
 }
@@ -516,7 +522,6 @@ Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fP
   TFile *fOut = new TFile("SMACrossover.root","UPDATE");
   if(fOut->GetListOfKeys()->Contains(gSymbol.Data())){
     fOut->Delete(gSymbol+";1");
-    fOut->Delete(gSymbol+"_VOL;1");
   }
   
    TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
@@ -601,9 +606,11 @@ Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fP
 ////////////////////////////////////////////////////////////////////////////////
 /// Main Function
 Int_t Analyzer( TString fSymbol = "SPY",
-	      TString fFreq = "1d",
-	      TDatime fStartDate = TDatime("2009-10-01 00:00:00"),
-	      TDatime fEndDate = TDatime("2010-06-05 00:00:00")) {
+		TString fFreq = "1d",
+		TDatime fStartDate = TDatime("2009-10-01 00:00:00"),
+		TDatime fEndDate = TDatime("2010-06-05 00:00:00"),
+		Bool_t fDownload = true
+		) {
 
   gSymbol = fSymbol;
   gFreq = fFreq;
@@ -611,9 +618,14 @@ Int_t Analyzer( TString fSymbol = "SPY",
   gStartDate = fStartDate;
   gEndDate = fEndDate;
   
-  TFile *f = GetData(fSymbol, fFreq, fStartDate, fEndDate);
+  TFile *f = GetData(fSymbol, fFreq, fStartDate, fEndDate, fDownload);
   f->ReOpen("READ");
 
+  if(!fDownload && !f->GetListOfKeys()->Contains(gSymbol.Data())){
+    printf("\nNo data available for %s\n", gSymbol.Data());
+    gApplication->Terminate();
+  }
+  
   //HiLoAnalysis(f);
   SMACrossoverScreener(f,6,10,5,0.04);
   
