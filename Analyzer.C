@@ -428,7 +428,7 @@ THStack *GetVolume(TFile *f){
 
   TDatime fDate;
   
-  THStack *fHSVol = new THStack();
+  THStack *fHSVol = new THStack("fHSVol","Volume");
 
   Int_t nbins = TMath::Nint((Double_t)(gEndDate.Convert() - gStartDate.Convert()) / GetTimeWidth(gFreq));
   
@@ -517,7 +517,7 @@ TMultiGraph *GetCandleStick(TFile *f){
 /// Simple Moving Average Crossover finder, fPeriod terms behind the actual term
 /// are scanned for a crossover with a minimum relative difference of fDelta
 /// The difference is computed between the last data point available and the crossover
-Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5, Float_t fDelta = 0.00){
+TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5, Float_t fDelta = 0.00){
 
   TFile *fOut = new TFile("SMACrossover.root","UPDATE");
   if(fOut->GetListOfKeys()->Contains(gSymbol.Data())){
@@ -567,8 +567,11 @@ Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fP
    fHSVol->GetXaxis()->SetTimeDisplay(1);
    fHSVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
    fHSVol->GetXaxis()->SetTimeOffset(0,"gmt");
- 
-   // Look for SMA Crossovers
+
+   TExec *exec1 = new TExec("exec1","fHSVol->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());");
+   fGCandle->GetListOfFunctions()->Add(exec1);
+   
+    // Look for SMA Crossovers
    Double_t prs[fPeriod];
    Double_t prf[fPeriod];
    for (Int_t i = 0; i < fPeriod; i++) {
@@ -589,6 +592,7 @@ Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fP
        if ( diff > fDelta ){
 	 printf("F_SMA Crossover for %s. Delta: %.2f%%\n", gSymbol.Data(), diff*100.);
 	 c1->Write(gSymbol.Data());
+	 return c1;
        }
        break;
      } else if (aft < 0 && prev > 0)  {
@@ -597,10 +601,10 @@ Int_t SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fP
      }
    }
    
-   
    fOut->Close();
-   
+
    return 0;
+
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -637,7 +641,6 @@ Int_t Analyzer( TString fSymbol = "SPY",
   // TGraph *fGAroon = GetAroon(f,25);
   // fGAroon->Draw("al");
 
-  
   return 0;
 
 }
