@@ -567,8 +567,11 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    fHSVol->GetXaxis()->SetTimeDisplay(1);
    fHSVol->GetXaxis()->SetTimeFormat("%b/%d/%y");
    fHSVol->GetXaxis()->SetTimeOffset(0,"gmt");
-
-   TExec *exec1 = new TExec("exec1","fHSVol->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());");
+   TH1 *hh = ((TH1 *)(fHSVol->GetStack()->Last()));
+   hh->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+   fHSVol->SetMaximum(hh->GetMaximum());
+   
+   TExec *exec1 = new TExec("exec1","fHSVol->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());((TH1 *)(fHSVol->GetStack()->Last()))->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());fHSVol->SetMaximum(((TH1 *)(fHSVol->GetStack()->Last()))->GetMaximum())");
    fGCandle->GetListOfFunctions()->Add(exec1);
    
     // Look for SMA Crossovers
