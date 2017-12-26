@@ -519,9 +519,11 @@ TMultiGraph *GetCandleStick(TFile *f){
 /// The difference is computed between the last data point available and the crossover
 TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5, Float_t fDelta = 0.00){
 
-  TFile *fOut = new TFile("SMACrossover.root","UPDATE");
+  TFile *fOut = new TFile("Output/SMACrossover.root","UPDATE");
   if(fOut->GetListOfKeys()->Contains(gSymbol.Data())){
     fOut->Delete(gSymbol+";1");
+    fOut->Delete(Form("%s_PRICE;1",gSymbol.Data()));
+    fOut->Delete(Form("%s_VOL;1",gSymbol.Data()));
   }
   
    TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
@@ -594,6 +596,8 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
        Float_t diff = (prf[fPeriod-1] - prs[i])/prs[i];
        if ( diff > fDelta ){
 	 printf("F_SMA Crossover for %s. Delta: %.2f%%\n", gSymbol.Data(), diff*100.);
+	 fGCandle->Write(Form("%s_PRICE",gSymbol.Data()));
+	 fHSVol->Write(Form("%s_VOL",gSymbol.Data()));
 	 c1->Write(gSymbol.Data());
 	 return c1;
        }
