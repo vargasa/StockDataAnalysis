@@ -10,6 +10,9 @@ TDatime gStartDate;
 TDatime gEndDate;
 
 ////////////////////////////////////////////////////////////////////////////////
+Double_t GetTimeWidth(TString);
+
+////////////////////////////////////////////////////////////////////////////////
 /// Function to compute an index to reuse array filling it cyclically
 
 Int_t GetIndex( Int_t fEvent, Int_t fInterval){
@@ -240,25 +243,30 @@ TGraph *GetSMA(TFile *f,
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Numerical derivative working only for equaly distant x-data 
+/// Numerical derivative working only for equaly distant x-data
+/// Expressed in %terms of the previous period
 
-TGraph *Derivative(TGraph *fg){
-  
-  TGraph *fgd = new TGraph();
+TH1F *GetDerivative(TGraph *fg){
+
+  Int_t nbins = TMath::Nint((Double_t)(gEndDate.Convert() - gStartDate.Convert()) / GetTimeWidth(gFreq));
+
+  TH1F *fGDerivative = new TH1F("fGDerivative","fGDerivative",nbins,gStartDate.Convert(),gEndDate.Convert());
 
   for (Int_t i = 1; i < fg->GetN(); i++){
     Double_t x1,y1,x2,y2;
     fg->GetPoint(i-1,x1,y1);
     fg->GetPoint(i,x2,y2);
-    Double_t dy = y2 - y1;
-    fgd->SetPoint(i-1,x2,dy);
+    Double_t dy = 100.*(y2 - y1)/y1;
+    fGDerivative->Fill(x2,dy);
   }
-  
-  fgd->GetXaxis()->SetTimeDisplay(1);
-  fgd->GetXaxis()->SetTimeFormat("%Y/%m/%d");
-  fgd->GetXaxis()->SetTimeOffset(0,"gmt");
+  fGDerivative->SetStats(false);
+  fGDerivative->SetFillColor(38);
+  fGDerivative->SetOption("HIST");
+  fGDerivative->GetXaxis()->SetTimeDisplay(1);
+  fGDerivative->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  fGDerivative->GetXaxis()->SetTimeOffset(0,"gmt");
 
-  return fgd;
+  return fGDerivative;
 }
 
 
@@ -527,13 +535,17 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
   }
   
    TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
-   TPad *pad1 = new TPad("pad1", "p1",0.0,0.15,1.0,1.0);
-   TPad *pad2 = new TPad("pad2", "p2",0.0,0.0,1.0,0.15);
+   TPad *pad1 = new TPad("pad1", "p1",0.0,0.50,1.0,1.0);
+   TPad *pad2 = new TPad("pad2", "p2",0.0,0.25,1.0,0.50);
+   TPad *pad3 = new TPad("pad3", "p3",0.0,0.0,1.0,0.25);
    pad2->SetFillStyle(4000); //will be transparent
    pad2->SetFrameFillStyle(0);
    pad1->Draw();
    pad2->Draw();
    pad2->SetGrid();
+   pad3->SetFillStyle(4000);
+   pad3->Draw();
+   pad3->SetGrid();
    
    pad1->cd();
    pad1->SetGrid();
@@ -554,7 +566,7 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    fGCandle->Add(fGFastSMA);
    fGCandle->Draw("A");
    TDatime tStart = TDatime(2017,01,01,00,00,00);
-   TDatime tEnd = TDatime(2017,12,07,00,00,00);
+   TDatime tEnd = gEndDate;
    fGCandle->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
    fGCandle->GetXaxis()->SetTimeDisplay(1);
    fGCandle->GetXaxis()->SetTimeFormat("%b/%d/%y");
@@ -572,10 +584,16 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    TH1 *hh = ((TH1 *)(fHSVol->GetStack()->Last()));
    hh->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
    fHSVol->SetMaximum(hh->GetMaximum());
-   
-   TExec *exec1 = new TExec("exec1","fHSVol->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());((TH1 *)(fHSVol->GetStack()->Last()))->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());fHSVol->SetMaximum(((TH1 *)(fHSVol->GetStack()->Last()))->GetMaximum())");
+
+   pad3->cd();
+   TH1F *fGDerivative = GetDerivative(GetSMA(f,25,"close"));
+   fGDerivative->SetTitle("First Relative Derivative SMA(25)");
+   fGDerivative->Draw();
+   fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+
+   TExec *exec1 = new TExec("exec1","fHSVol->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());fGDerivative->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());((TH1 *)(fHSVol->GetStack()->Last()))->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());fHSVol->SetMaximum(((TH1 *)(fHSVol->GetStack()->Last()))->GetMaximum())");
    fGCandle->GetListOfFunctions()->Add(exec1);
-   
+
     // Look for SMA Crossovers
    Double_t prs[fPeriod];
    Double_t prf[fPeriod];
@@ -638,7 +656,7 @@ Int_t Analyzer( TString fSymbol = "SPY",
   }
   
   //HiLoAnalysis(f);
-  SMACrossoverScreener(f,6,10,5,0.04);
+  SMACrossoverScreener(f,6,10,6,0.04);
   
   // TGraph *fGAroonUp = GetAroonUp(f,25);
   // fGAroonUp->Draw("al");
