@@ -618,6 +618,13 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    fGCandle->GetXaxis()->SetTimeDisplay(1);
    fGCandle->GetXaxis()->SetTimeFormat("%b/%d/%y");
    fGCandle->GetXaxis()->SetTimeOffset(0,"gmt");
+
+   TLegend *fLegend = new TLegend(0.1,0.7,0.2,0.9);
+   fLegend->AddEntry(fGSlowSMA,Form("SMA(%d)",fSlow),"l");
+   fLegend->AddEntry(fGFastSMA,Form("SMA(%d)",fFast),"l");
+   fLegend->AddEntry(fGVWMA,Form("VWMA(%d)",25),"l");
+   fLegend->AddEntry(fGBB,Form("BB(%d)",25));
+   fLegend->Draw();
    
    pad2->cd();
    
