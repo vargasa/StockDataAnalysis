@@ -522,6 +522,48 @@ TMultiGraph *GetCandleStick(TFile *f){
 
 }
 ////////////////////////////////////////////////////////////////////////////////
+/// Volume Weighted Moving Average
+TGraph *GetVWMA(TFile *f,
+	       Int_t fInterval = 25,
+	       Option_t *Option="close"){
+  
+  TTreeReader fReader(gSymbol, f);
+  TTreeReaderValue<Int_t> fVol(fReader,"fVolume");
+  TTreeReaderArray<char> fDt(fReader,"fDate");
+  TTreeReaderValue<Float_t> fC(fReader,"fClose");
+  
+  TDatime fDate;
+  Int_t fEvent = 0;
+
+  Float_t fPrice[fInterval];
+  Double_t fVolume[fInterval];
+  TGraph *fGVWMA = new TGraph();
+
+  while(fReader.Next()){
+
+    TString fSDt = static_cast<char*>(fDt.GetAddress());
+    fSDt.Append(" 00:00:00");
+    fDate = TDatime(fSDt);
+
+    Int_t n = GetIndex(fEvent,fInterval);
+    fPrice[n] = *fC;
+    fVolume[n] = (Double_t)(*fVol);
+
+    if (fEvent >= fInterval){
+      Float_t VMWA = TMath::Mean(&fPrice[0],&fPrice[fInterval],&fVolume[0]);
+      fGVWMA->SetPoint(fGVWMA->GetN(),fDate.Convert(),VMWA);
+    }
+    fEvent++;
+    
+  }
+  fGVWMA->SetTitle(Form("%s SMA(%d);Date;SMA",gSymbol.Data(),fInterval));
+  fGVWMA->GetXaxis()->SetTimeDisplay(1);
+  fGVWMA->GetXaxis()->SetTimeFormat("%Y/%m/%d");
+  fGVWMA->GetXaxis()->SetTimeOffset(0,"gmt");
+
+  return fGVWMA;
+}
+////////////////////////////////////////////////////////////////////////////////
 /// Simple Moving Average Crossover finder, fPeriod terms behind the actual term
 /// are scanned for a crossover with a minimum relative difference of fDelta
 /// The difference is computed between the last data point available and the crossover
@@ -564,8 +606,13 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    fGFastSMA->SetLineWidth(3);
    fGFastSMA->SetLineColor(kGreen);
    fGCandle->Add(fGFastSMA);
+   TGraph *fGVWMA = GetVWMA(f, 25, "close");
+   fGVWMA->SetLineWidth(2);
+   fGVWMA->SetLineColor(kRed);
+   fGVWMA->SetLineStyle(7);
+   fGCandle->Add(fGVWMA);
    fGCandle->Draw("A");
-   TDatime tStart = TDatime(2017,01,01,00,00,00);
+   TDatime tStart = TDatime(2016,01,01,00,00,00);
    TDatime tEnd = gEndDate;
    fGCandle->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
    fGCandle->GetXaxis()->SetTimeDisplay(1);
