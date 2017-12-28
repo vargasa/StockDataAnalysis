@@ -567,7 +567,7 @@ TGraph *GetVWMA(TFile *f,
 /// Simple Moving Average Crossover finder, fPeriod terms behind the actual term
 /// are scanned for a crossover with a minimum relative difference of fDelta
 /// The difference is computed between the last data point available and the crossover
-TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5, Float_t fDelta = 0.00){
+TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5, Float_t fDelta = 0.00, Int_t fBB = 25){
 
   TFile *fOut = new TFile("Output/SMACrossover.root","UPDATE");
   if(fOut->GetListOfKeys()->Contains(gSymbol.Data())){
@@ -595,7 +595,7 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    TMultiGraph *fGCandle = GetCandleStick(f);
    
    // fGBB Draws Axis and Set Time Scale at XRange
-   TGraphErrors *fGBB = GetBollingerBands(f,20,2.0);
+   TGraphErrors *fGBB = GetBollingerBands(f,fBB,2.0);
    fGCandle->Add(fGBB,"A3C");
    
    TGraph *fGSlowSMA = GetSMA(f, fSlow,"close");
@@ -606,7 +606,7 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    fGFastSMA->SetLineWidth(3);
    fGFastSMA->SetLineColor(kGreen);
    fGCandle->Add(fGFastSMA);
-   TGraph *fGVWMA = GetVWMA(f, 25, "close");
+   TGraph *fGVWMA = GetVWMA(f, fBB, "close");
    fGVWMA->SetLineWidth(2);
    fGVWMA->SetLineColor(kRed);
    fGVWMA->SetLineStyle(7);
@@ -622,8 +622,8 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    TLegend *fLegend = new TLegend(0.1,0.7,0.2,0.9);
    fLegend->AddEntry(fGSlowSMA,Form("SMA(%d)",fSlow),"l");
    fLegend->AddEntry(fGFastSMA,Form("SMA(%d)",fFast),"l");
-   fLegend->AddEntry(fGVWMA,Form("VWMA(%d)",25),"l");
-   fLegend->AddEntry(fGBB,Form("BB(%d)",25));
+   fLegend->AddEntry(fGVWMA,Form("VWMA(%d)",fBB),"l");
+   fLegend->AddEntry(fGBB,Form("BB(%d)",fBB));
    fLegend->Draw();
    
    pad2->cd();
@@ -640,8 +640,8 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    fHSVol->SetMaximum(hh->GetMaximum());
 
    pad3->cd();
-   TH1F *fGDerivative = GetDerivative(GetSMA(f,25,"close"));
-   fGDerivative->SetTitle("First Relative Derivative SMA(25)");
+   TH1F *fGDerivative = GetDerivative(GetSMA(f,fBB,"close"));
+   fGDerivative->SetTitle("First Relative Derivative SMA(fBB)");
    fGDerivative->Draw();
    fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
 
@@ -712,12 +712,12 @@ Int_t Analyzer( TString fSymbol = "SPY",
   //HiLoAnalysis(f);
   SMACrossoverScreener(f,6,10,6,0.04);
   
-  // TGraph *fGAroonUp = GetAroonUp(f,25);
+  // TGraph *fGAroonUp = GetAroonUp(f,fBB);
   // fGAroonUp->Draw("al");
-  // TGraph *fGAroonDown = GetAroonDown(f,25);
+  // TGraph *fGAroonDown = GetAroonDown(f,fBB);
   // fGAroonDown->Draw("same");
   
-  // TGraph *fGAroon = GetAroon(f,25);
+  // TGraph *fGAroon = GetAroon(f,fBB);
   // fGAroon->Draw("al");
 
   return 0;
