@@ -1,14 +1,19 @@
-#DPriceArea {
-
-    margin: auto;
-    width: 1200px;
-    height: 400px;
-    
+#MainDiv{
+    top: 0;
+    bottom:0;
+    left: 0;
+    right: 0;
+    position: absolute;
 }
-#DVolArea {
 
-    margin: auto;
-    width: 1200px;
-    height: 200px;
-    
+#ExplorerDiv{
+    width: 200px;
+    height: 100%;
+    float: left;
+}
+
+#DrawingDiv{
+    width: calc(100% - 200px);
+    height: calc(100%);
+    float:right
 }

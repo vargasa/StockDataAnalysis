@@ -1,14 +1,13 @@
 var filename = "SMACrossover.root";
-var volpainter = null;
 
-JSROOT.OpenFile(filename, function(file) {
-
-    file.ReadObject("AEO_VOL;1", function(obj) {
-	JSROOT.draw("DVolArea", obj, "");
+function createGUI() {
+    
+    var h = new JSROOT.HierarchyPainter("", "ExplorerDiv");
+    
+    h.SetDisplay("tabs", "DrawingDiv");
+    
+    h.OpenRootFile(filename, function() {
+	h.display("GPS;1");
     });
     
-    file.ReadObject("AEO_PRICE;1", function(obj) {
-	JSROOT.draw("DPriceArea", obj);
-    });
-    
-});
+}
