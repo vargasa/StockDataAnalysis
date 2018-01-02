@@ -467,9 +467,9 @@ THStack *GetVolume(TFile *f){
 
 ////////////////////////////////////////////////////////////////////////////////
 /// CandleStick
-TMultiGraph *GetCandleStick(TFile *f){
+TMultiGraph *GetCandleStick(TFile *f, TString fSymbol, TString fFreq = "1wk"){
 
-  TTreeReader fReader(gSymbol, f);
+  TTreeReader fReader(fSymbol, f);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fO(fReader,"fOpen");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
@@ -492,12 +492,11 @@ TMultiGraph *GetCandleStick(TFile *f){
     Double_t mdl = (*fO + *fC)/2.;
     Double_t l1 = TMath::Abs(*fO - mdl);
     
-    Double_t twidth = GetTimeWidth(gFreq) * 0.33;
+    Double_t twidth = GetTimeWidth(fFreq) * 0.33;
 
     if (*fO < *fC) { 
       Int_t n = fGOCG->GetN();
       fGOCG->SetPoint(n,fDate.Convert(), mdl);
-      // Bar Size only working for weekly charts
       fGOCG->SetPointError(n,twidth,l1);
     } else {
       Int_t n = fGOCR->GetN();
@@ -516,7 +515,7 @@ TMultiGraph *GetCandleStick(TFile *f){
   fGCandle->Add(fGHL,"E");
   fGCandle->Add(fGOCG,"E2");
   fGCandle->Add(fGOCR,"E2");
-  fGCandle->SetTitle(Form("%s CandleStick;Date;Price",gSymbol.Data()));
+  fGCandle->SetTitle(Form("%s CandleStick;Date;Price",fSymbol.Data()));
   
   return fGCandle;
 
@@ -592,7 +591,7 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    pad1->cd();
    pad1->SetGrid();
    
-   TMultiGraph *fGCandle = GetCandleStick(f);
+   TMultiGraph *fGCandle = GetCandleStick(f,gSymbol);
    
    // fGBB Draws Axis and Set Time Scale at XRange
    TGraphErrors *fGBB = GetBollingerBands(f,fBB,2.0);
