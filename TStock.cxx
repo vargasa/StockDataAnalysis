@@ -11,7 +11,7 @@ TStock::TStock(TString Symbol,TString Freq, TTimeStamp StartDate, TTimeStamp End
 }
 
 
-Double_t GetTimeWidth(TString Freq = "1wk"){
+Double_t TStock::GetTimeWidth(TString Freq = "1wk"){
 
   // Definition of the candlestick width
   // Period of time in seconds
@@ -29,7 +29,7 @@ Double_t GetTimeWidth(TString Freq = "1wk"){
 
 }
 
-Int_t GetIndex GetIndex(Int_t Event, Int_t Interval){
+Int_t TStock::GetIndex(Int_t Event, Int_t Interval){
 
   Int_t Index = 0;
   Int_t Aux = (Event%Interval - 1);
@@ -43,42 +43,42 @@ Int_t GetIndex GetIndex(Int_t Event, Int_t Interval){
   
 }
 
-TFile *GetData(){
+TTree* TStock::GetData(){
+    
+}
+
+TGraph* TStock::GetAroonDown(Int_t Interval){
 
 }
 
-TGraph *GetAroonDown(Int_t Interval){
+TGraph* TStock::GetAroonUp(Int_t Interval){
 
 }
 
-TGraph *GetAroonUp(Int_t Interval){
+TGraph* TStock::GetAroon(Int_t Interval){
 
 }
 
-TGraph *GetAroon(Int_t Interval){
+TGraph* TStock::GetSMA(Int_t Interval, Option_t *Option){
 
 }
 
-TGraph *GetSMA(Int_t Interval, Option_t *Option){
+TGraph* TStock::GetVWMA(Int_t Interval, Option_t *Option){
 
 }
 
-TGraph *GetVWMA(Int_t Interval, Option_t *Option){
+TGraphErrors* TStock::GetBollingerBands(Int_t Interval, Float_t fW){
 
 }
 
-TGraphErrors *GetBollingerBands(Int_t Interval, Float_t fW){
+TH1F* TStock::GetDerivative(TGraph *fg){
 
 }
 
-TH1F *GetDerivative(TGraph *fg){
+THStack* TStock::GetVolume(){
 
 }
 
-THStack *GetVolume(){
-
-}
-
-TMultiGraph *GetCandleStick(){
+TMultiGraph* TStock::GetCandleStick(){
 
 }
