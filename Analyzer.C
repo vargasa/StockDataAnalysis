@@ -67,7 +67,7 @@ TTree *GetData( TString fSymbol,
 	Int_t yy, mm, dd;
 
 	if (sscanf(fSDt.Data(), "%d-%d-%d", &yy, &mm, &dd) == 3){
-	  date = TTimeStamp(yy,mm,dd,00,00,00,0);
+	  date = TTimeStamp(yy,mm,dd,00,00,00,0,false);
 	  fTimeStamp->Fill();
 	}
 	
@@ -91,10 +91,8 @@ TGraph *GetAroonDown(TTree *tree,
 		 Int_t fInterval = 25){
 
   TTreeReader fReader(tree);
-  TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
-
-  TDatime fDate;
+  TTreeReaderValue<TTimeStamp> fTS(fReader,"fTimeStamp");
 
   Int_t fEvent;
   Float_t Price[fInterval];
@@ -102,16 +100,10 @@ TGraph *GetAroonDown(TTree *tree,
   
   while(fReader.Next()){
 
-    TString fSDt = static_cast<char*>(fDt.GetAddress());
-    fSDt.Append(" 00:00:00");
-    fDate = TDatime(fSDt);
-    
     Float_t aroondown;
     Int_t inow = GetIndex(fEvent,fInterval);
 
-
     Price[inow] = *fH;
-
     
     if (fEvent > fInterval) {
       
@@ -124,7 +116,7 @@ TGraph *GetAroonDown(TTree *tree,
 	aroondown = (Float_t)(fInterval - (fInterval-MinIndex+inow))*100;	
       }
       aroondown = aroondown/(Float_t)fInterval;
-      fGAroonDown->SetPoint(fGAroonDown->GetN(),fDate.Convert(),aroondown);
+      fGAroonDown->SetPoint(fGAroonDown->GetN(),fTS->GetSec(),aroondown);
     }
     
     fEvent++;
@@ -148,21 +140,15 @@ TGraph *GetAroonUp(TTree *tree,
 		 Int_t fInterval = 25){
 
   TTreeReader fReader(tree);
-  TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
-
-  TDatime fDate;
+  TTreeReaderValue<TTimeStamp> fTS(fReader,"fTimeStamp");
 
   Int_t fEvent;
   Float_t Price[fInterval];
   TGraph *fGAroonUp = new TGraph();
   
   while(fReader.Next()){
-
-    TString fSDt = static_cast<char*>(fDt.GetAddress());
-    fSDt.Append(" 00:00:00");
-    fDate = TDatime(fSDt);
-    
+	
     Float_t aroonup;
     Int_t inow = GetIndex(fEvent,fInterval);
 
@@ -181,7 +167,7 @@ TGraph *GetAroonUp(TTree *tree,
 	aroonup = (Float_t)(fInterval - (fInterval-MaxIndex+inow))*100;	
       }
       aroonup = aroonup/(Float_t)fInterval;
-      fGAroonUp->SetPoint(fGAroonUp->GetN(),fDate.Convert(),aroonup);	  
+      fGAroonUp->SetPoint(fGAroonUp->GetN(),fTS->GetSec(),aroonup);	  
     }
 
     fEvent++;
@@ -230,29 +216,24 @@ TGraph *GetSMA(TTree *tree,
 	       Option_t *Option="close"){
   
   TTreeReader fReader(tree);
-  TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
   TTreeReaderValue<Float_t> fL(fReader,"fLow");
   TTreeReaderValue<Float_t> fO(fReader,"fOpen");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
-
-  TDatime fDate;
+  TTreeReaderValue<TTimeStamp> fTS(fReader,"fTimeStamp");
+  
   Int_t fEvent = 0;
 
   Float_t fPrice[fInterval];
   TGraph *fGSMA = new TGraph();
 
   while(fReader.Next()){
-
-    TString fSDt = static_cast<char*>(fDt.GetAddress());
-    fSDt.Append(" 00:00:00");
-    fDate = TDatime(fSDt);
     
     fPrice[GetIndex(fEvent,fInterval)] = *fC;
 
     if (fEvent >= fInterval){
       Float_t SMA = TMath::Mean(fInterval,&fPrice[0]);     
-      fGSMA->SetPoint(fGSMA->GetN(),fDate.Convert(),SMA);
+      fGSMA->SetPoint(fGSMA->GetN(),fTS->GetSec(),SMA);
     }
     fEvent++;
     
@@ -383,10 +364,7 @@ TGraphErrors *GetBollingerBands(TTree *tree,
 			       ){
   
   TTreeReader fReader(tree);
-  TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
-  
-  TDatime fDate;
 
   TGraph *fGSMA = GetSMA(tree, fInterval, "close");
 
@@ -399,10 +377,6 @@ TGraphErrors *GetBollingerBands(TTree *tree,
 
   while(fReader.Next()){
     
-    TString fSDt = static_cast<char*>(fDt.GetAddress());
-    fSDt.Append(" 00:00:00");
-    fDate = TDatime(fSDt);
-
     inow = GetIndex(fEvent,fInterval);
 
     Price[inow] = *fC;
@@ -453,12 +427,10 @@ Double_t GetTimeWidth(TString fFreq = "1wk"){
 THStack *GetVolume(TTree *tree){
   
   TTreeReader fReader(tree);
-  TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Int_t> fVol(fReader,"fVolume");
   TTreeReaderValue<Float_t> fO(fReader,"fOpen");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
-
-  TDatime fDate;
+  TTreeReaderValue<TTimeStamp> fTS(fReader,"fTimeStamp");
   
   THStack *fHSVol = new THStack("fHSVol","Volume");
 
@@ -468,15 +440,11 @@ THStack *GetVolume(TTree *tree){
   TH1I *fHVolR = new TH1I("fHVolR","fHVolR",nbins,gStartDate.Convert(),gEndDate.Convert());
   
   while(fReader.Next()){
-    
-    TString fSDt = static_cast<char*>(fDt.GetAddress());
-    fSDt.Append(" 00:00:00");
-    fDate = TDatime(fSDt);
 
     if(*fO < *fC){
-      fHVolG->Fill(fDate.Convert(),*fVol);
+      fHVolG->Fill(fTS->GetSec(),*fVol);
     } else {
-      fHVolR->Fill(fDate.Convert(),*fVol);
+      fHVolR->Fill(fTS->GetSec(),*fVol);
     }
 
   }
@@ -493,14 +461,14 @@ THStack *GetVolume(TTree *tree){
 /// CandleStick
 TMultiGraph *GetCandleStick(TTree *tree, TString fFreq = "1wk"){
 
+  //GOAL: Replace TDatime -> TTimeStamp
   TTreeReader fReader(tree);
-  TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fO(fReader,"fOpen");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
   TTreeReaderValue<Float_t> fL(fReader,"fLow");
+  TTreeReaderValue<TTimeStamp> fTS(fReader,"fTimeStamp");
 
-  TDatime fDate;
 
   TMultiGraph *fGCandle = new TMultiGraph();
   TGraphErrors *fGOCG = new TGraphErrors();
@@ -509,26 +477,24 @@ TMultiGraph *GetCandleStick(TTree *tree, TString fFreq = "1wk"){
   
   while(fReader.Next()){
     
-    TString fSDt = static_cast<char*>(fDt.GetAddress());
-    fSDt.Append(" 00:00:00");
-    fDate = TDatime(fSDt);
-
     Double_t mdl = (*fO + *fC)/2.;
     Double_t l1 = TMath::Abs(*fO - mdl);
     
     Double_t twidth = GetTimeWidth(fFreq) * 0.33;
 
+    long tt = fTS->GetSec();
+
     if (*fO < *fC) { 
       Int_t n = fGOCG->GetN();
-      fGOCG->SetPoint(n,fDate.Convert(), mdl);
+      fGOCG->SetPoint(n,tt, mdl);
       fGOCG->SetPointError(n,twidth,l1);
     } else {
       Int_t n = fGOCR->GetN();
-      fGOCR->SetPoint(n,fDate.Convert(), mdl);
+      fGOCR->SetPoint(n,tt, mdl);
       fGOCR->SetPointError(n,twidth,l1);
     }
     Int_t n = fGHL->GetN();
-    fGHL->SetPoint(n,fDate.Convert(), mdl);
+    fGHL->SetPoint(n,tt, mdl);
     Double_t l = mdl - *fL;
     Double_t h = *fH - mdl;
     fGHL->SetPointError(n,0.,0.,l,h);
@@ -552,8 +518,8 @@ TGraph *GetVWMA(TTree *tree,
   
   TTreeReader fReader(tree);
   TTreeReaderValue<Int_t> fVol(fReader,"fVolume");
-  TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
+  TTreeReaderValue<TTimeStamp> fTS(fReader,"fTimeStamp");
   
   TDatime fDate;
   Int_t fEvent = 0;
@@ -564,17 +530,13 @@ TGraph *GetVWMA(TTree *tree,
 
   while(fReader.Next()){
 
-    TString fSDt = static_cast<char*>(fDt.GetAddress());
-    fSDt.Append(" 00:00:00");
-    fDate = TDatime(fSDt);
-
     Int_t n = GetIndex(fEvent,fInterval);
     fPrice[n] = *fC;
     fVolume[n] = (Double_t)(*fVol);
 
     if (fEvent >= fInterval){
       Float_t VMWA = TMath::Mean(&fPrice[0],&fPrice[fInterval],&fVolume[0]);
-      fGVWMA->SetPoint(fGVWMA->GetN(),fDate.Convert(),VMWA);
+      fGVWMA->SetPoint(fGVWMA->GetN(),fTS->GetSec(),VMWA);
     }
     fEvent++;
     
@@ -598,7 +560,7 @@ TCanvas *SMACrossoverScreener(TTree *tree, Int_t fFast = 6, Int_t fSlow = 10, In
     fOut->Delete(Form("%s_PRICE;1",gSymbol.Data()));
     fOut->Delete(Form("%s_VOL;1",gSymbol.Data()));
   }
-  
+
    TCanvas *c1 = new TCanvas("c1","c1",2048,1152);
    TPad *pad1 = new TPad("pad1", "p1",0.0,0.50,1.0,1.0);
    TPad *pad2 = new TPad("pad2", "p2",0.0,0.25,1.0,0.50);
