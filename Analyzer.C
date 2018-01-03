@@ -32,7 +32,7 @@ Int_t GetIndex( Int_t fEvent, Int_t fInterval){
 ////////////////////////////////////////////////////////////////////////////////
 /// Get data from Yahoo! Finance API using getData.sh Shell Script
 
-TFile *GetData( TString fSymbol,
+TTree *GetData( TString fSymbol,
 		TString fFreq,
 		TDatime fStartDate,
 		TDatime fEndDate,
@@ -40,33 +40,57 @@ TFile *GetData( TString fSymbol,
 		){
   // 1d, 1wk, 1mo
   
-  TFile *f = new TFile("SymbolsDB.root","UPDATE");
+  //TFile *f = new TFile("SymbolsDB.root","UPDATE");
+  TTree *tree = new TTree(fSymbol,"From CSV File");
   
   if (fDownload) {
-    Int_t ans = gSystem->Exec("sh getData.sh "+fSymbol+" "+fFreq+" '"+fStartDate.AsString()+"' "+"'"+fEndDate.AsString()+"' /tmp/");
+    Int_t ans = gSystem->Exec("sh getData.sh "
+			      +fSymbol+" "
+			      +fFreq+" '"+fStartDate.AsString()+"' "
+			      +"'"+fEndDate.AsString()
+			      +"' /tmp/");
     if (ans == 0) {
-      if(f->GetListOfKeys()->Contains(fSymbol.Data())){
-	f->Delete(fSymbol+";1");
-      }
-      TTree *tree = new TTree(fSymbol,"From CSV File");
+      // if(f->GetListOfKeys()->Contains(fSymbol.Data())){
+      // 	f->Delete(fSymbol+";1");
+      // }
       tree->ReadFile("/tmp/"+fSymbol+".csv","fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
-      tree->Write();
+
+      TTreeReader fReader(tree);
+      TTreeReaderArray<char> fDt(fReader,"fDate");
+
+      TTimeStamp date;
+      TBranch *fTimeStamp = tree->Branch("fTimeStamp", &date);
+      
+      while(fReader.Next()){
+	
+	TString fSDt = static_cast<char*>(fDt.GetAddress());
+	Int_t yy, mm, dd;
+
+	if (sscanf(fSDt.Data(), "%d-%d-%d", &yy, &mm, &dd) == 3){
+	  date = TTimeStamp(yy,mm,dd,00,00,00,0);
+	  fTimeStamp->Fill();
+	}
+	
+      }
+      
+      tree->Write("",TObject::kOverwrite);
+      
     } else {
       printf("\nData Download was unsucessfull\n");
       gApplication->Terminate();
     }
   }
 
-  return f;
-  
+  return tree;
+    
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// AroonDown
 
-TGraph *GetAroonDown(TFile *f,
+TGraph *GetAroonDown(TTree *tree,
 		 Int_t fInterval = 25){
 
-  TTreeReader fReader(gSymbol, f);
+  TTreeReader fReader(tree);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
 
@@ -120,10 +144,10 @@ TGraph *GetAroonDown(TFile *f,
 ////////////////////////////////////////////////////////////////////////////////
 /// AroonUp
 
-TGraph *GetAroonUp(TFile *f,
+TGraph *GetAroonUp(TTree *tree,
 		 Int_t fInterval = 25){
 
-  TTreeReader fReader(gSymbol, f);
+  TTreeReader fReader(tree);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
 
@@ -175,12 +199,12 @@ TGraph *GetAroonUp(TFile *f,
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Aroon Oscillator
-TGraph *GetAroon(TFile *f,
+TGraph *GetAroon(TTree *tree,
 		 Int_t fInterval = 25){
   
   TGraph *fGAroon = new TGraph();
-  TGraph *fGAroonUp = GetAroonUp(f,fInterval);
-  TGraph *fGAroonDown = GetAroonDown(f,fInterval);
+  TGraph *fGAroonUp = GetAroonUp(tree,fInterval);
+  TGraph *fGAroonDown = GetAroonDown(tree,fInterval);
   for (Int_t i = 0; i < fGAroonUp->GetN(); i++){
     Double_t x1, y1, x2, y2;
     fGAroonUp->GetPoint(i,x1,y1);
@@ -201,11 +225,11 @@ TGraph *GetAroon(TFile *f,
 ////////////////////////////////////////////////////////////////////////////////
 /// Simple Moving Average SMA
 
-TGraph *GetSMA(TFile *f,
+TGraph *GetSMA(TTree *tree,
 	       Int_t fInterval = 6,
 	       Option_t *Option="close"){
   
-  TTreeReader fReader(gSymbol, f);
+  TTreeReader fReader(tree);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fH(fReader,"fHigh");
   TTreeReaderValue<Float_t> fL(fReader,"fLow");
@@ -353,18 +377,18 @@ Int_t HiLoAnalysis(TFile *f){
 
 ////////////////////////////////////////////////////////////////////////////////
 /// BollingerBands
-TGraphErrors *GetBollingerBands(TFile *f,
+TGraphErrors *GetBollingerBands(TTree *tree,
 			       Int_t fInterval = 20,
 			       Float_t fW = 2.0
 			       ){
   
-  TTreeReader fReader(gSymbol, f);
+  TTreeReader fReader(tree);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
   
   TDatime fDate;
 
-  TGraph *fGSMA = GetSMA(f, fInterval, "close");
+  TGraph *fGSMA = GetSMA(tree, fInterval, "close");
 
   TGraphErrors *fGBB = new TGraphErrors();
 
@@ -426,9 +450,9 @@ Double_t GetTimeWidth(TString fFreq = "1wk"){
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Volume Graph
-THStack *GetVolume(TFile *f){
+THStack *GetVolume(TTree *tree){
   
-  TTreeReader fReader(gSymbol, f);
+  TTreeReader fReader(tree);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Int_t> fVol(fReader,"fVolume");
   TTreeReaderValue<Float_t> fO(fReader,"fOpen");
@@ -467,9 +491,9 @@ THStack *GetVolume(TFile *f){
 
 ////////////////////////////////////////////////////////////////////////////////
 /// CandleStick
-TMultiGraph *GetCandleStick(TFile *f, TString fSymbol, TString fFreq = "1wk"){
+TMultiGraph *GetCandleStick(TTree *tree, TString fFreq = "1wk"){
 
-  TTreeReader fReader(fSymbol, f);
+  TTreeReader fReader(tree);
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fO(fReader,"fOpen");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
@@ -515,18 +539,18 @@ TMultiGraph *GetCandleStick(TFile *f, TString fSymbol, TString fFreq = "1wk"){
   fGCandle->Add(fGHL,"E");
   fGCandle->Add(fGOCG,"E2");
   fGCandle->Add(fGOCR,"E2");
-  fGCandle->SetTitle(Form("%s CandleStick;Date;Price",fSymbol.Data()));
+  fGCandle->SetTitle(Form("%s CandleStick;Date;Price",tree->GetTitle()));
   
   return fGCandle;
 
 }
 ////////////////////////////////////////////////////////////////////////////////
 /// Volume Weighted Moving Average
-TGraph *GetVWMA(TFile *f,
+TGraph *GetVWMA(TTree *tree,
 	       Int_t fInterval = 25,
 	       Option_t *Option="close"){
   
-  TTreeReader fReader(gSymbol, f);
+  TTreeReader fReader(tree);
   TTreeReaderValue<Int_t> fVol(fReader,"fVolume");
   TTreeReaderArray<char> fDt(fReader,"fDate");
   TTreeReaderValue<Float_t> fC(fReader,"fClose");
@@ -566,7 +590,7 @@ TGraph *GetVWMA(TFile *f,
 /// Simple Moving Average Crossover finder, fPeriod terms behind the actual term
 /// are scanned for a crossover with a minimum relative difference of fDelta
 /// The difference is computed between the last data point available and the crossover
-TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5, Float_t fDelta = 0.00, Int_t fBB = 25){
+TCanvas *SMACrossoverScreener(TTree *tree, Int_t fFast = 6, Int_t fSlow = 10, Int_t fPeriod = 5, Float_t fDelta = 0.00, Int_t fBB = 25){
 
   TFile *fOut = new TFile("Output/SMACrossover.root","UPDATE");
   if(fOut->GetListOfKeys()->Contains(gSymbol.Data())){
@@ -591,21 +615,21 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    pad1->cd();
    pad1->SetGrid();
    
-   TMultiGraph *fGCandle = GetCandleStick(f,gSymbol);
+   TMultiGraph *fGCandle = GetCandleStick(tree,gFreq);
    
    // fGBB Draws Axis and Set Time Scale at XRange
-   TGraphErrors *fGBB = GetBollingerBands(f,fBB,2.0);
+   TGraphErrors *fGBB = GetBollingerBands(tree,fBB,2.0);
    fGCandle->Add(fGBB,"A3C");
    
-   TGraph *fGSlowSMA = GetSMA(f, fSlow,"close");
+   TGraph *fGSlowSMA = GetSMA(tree, fSlow,"close");
    fGSlowSMA->SetLineWidth(3);
    fGSlowSMA->SetLineColor(kBlue);
    fGCandle->Add(fGSlowSMA);
-   TGraph *fGFastSMA = GetSMA(f, fFast, "close");
+   TGraph *fGFastSMA = GetSMA(tree, fFast, "close");
    fGFastSMA->SetLineWidth(3);
    fGFastSMA->SetLineColor(kGreen);
    fGCandle->Add(fGFastSMA);
-   TGraph *fGVWMA = GetVWMA(f, fBB, "close");
+   TGraph *fGVWMA = GetVWMA(tree, fBB, "close");
    fGVWMA->SetLineWidth(2);
    fGVWMA->SetLineColor(kRed);
    fGVWMA->SetLineStyle(7);
@@ -627,7 +651,7 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    
    pad2->cd();
    
-   THStack *fHSVol = GetVolume(f);
+   THStack *fHSVol = GetVolume(tree);
    fHSVol->Draw("Y+");
    //fHSVol->GetYaxis()->SetTickSize(0.);
    fHSVol->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
@@ -639,13 +663,13 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
    fHSVol->SetMaximum(hh->GetMaximum());
 
    pad3->cd();
-   TH1F *fGDerivative = GetDerivative(GetSMA(f,fBB,"close"));
+   TH1F *fGDerivative = GetDerivative(GetSMA(tree,fBB,"close"));
    fGDerivative->SetTitle("First Relative Derivative SMA(fBB)");
    fGDerivative->Draw();
    fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
 
-   TExec *exec1 = new TExec("exec1","fHSVol->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());fGDerivative->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());((TH1 *)(fHSVol->GetStack()->Last()))->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());fHSVol->SetMaximum(((TH1 *)(fHSVol->GetStack()->Last()))->GetMaximum())");
-   fGCandle->GetListOfFunctions()->Add(exec1);
+   // TExec *exec1 = new TExec("exec1","fHSVol->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());fGDerivative->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());((TH1 *)(fHSVol->GetStack()->Last()))->GetXaxis()->SetRangeUser(pad1->GetUxmin(),pad1->GetUxmax());fHSVol->SetMaximum(((TH1 *)(fHSVol->GetStack()->Last()))->GetMaximum())");
+   // fGCandle->GetListOfFunctions()->Add(exec1);
 
     // Look for SMA Crossovers
    Double_t prs[fPeriod];
@@ -666,11 +690,11 @@ TCanvas *SMACrossoverScreener(TFile *f, Int_t fFast = 6, Int_t fSlow = 10, Int_t
      if ( aft  > 0 &&  prev < 0 ) {
        Float_t diff = (prf[fPeriod-1] - prs[i])/prs[i];
        if ( diff > fDelta ){
-	 printf("F_SMA Crossover for %s. Delta: %.2f%%\n", gSymbol.Data(), diff*100.);
-	 fGCandle->Write(Form("%s_PRICE",gSymbol.Data()));
-	 fHSVol->Write(Form("%s_VOL",gSymbol.Data()));
-	 c1->Write(gSymbol.Data());
-	 return c1;
+   	 printf("F_SMA Crossover for %s. Delta: %.2f%%\n", gSymbol.Data(), diff*100.);
+   	 fGCandle->Write(Form("%s_PRICE",gSymbol.Data()));
+   	 fHSVol->Write(Form("%s_VOL",gSymbol.Data()));
+   	 c1->Write(gSymbol.Data());
+   	 return c1;
        }
        break;
      } else if (aft < 0 && prev > 0)  {
@@ -700,16 +724,15 @@ Int_t Analyzer( TString fSymbol = "SPY",
   gStartDate = fStartDate;
   gEndDate = fEndDate;
   
-  TFile *f = GetData(fSymbol, fFreq, fStartDate, fEndDate, fDownload);
-  f->ReOpen("READ");
-
-  if(!fDownload && !f->GetListOfKeys()->Contains(gSymbol.Data())){
-    printf("\nNo data available for %s\n", gSymbol.Data());
-    gApplication->Terminate();
-  }
+  TTree *tree = GetData(fSymbol, fFreq, fStartDate, fEndDate, fDownload);
+  
+  // if(!fDownload && !f->GetListOfKeys()->Contains(gSymbol.Data())){
+  //   printf("\nNo data available for %s\n", gSymbol.Data());
+  //   gApplication->Terminate();
+  // }
   
   //HiLoAnalysis(f);
-  SMACrossoverScreener(f,6,10,6,0.04);
+  SMACrossoverScreener(tree,6,10,6,0.04);
   
   // TGraph *fGAroonUp = GetAroonUp(f,fBB);
   // fGAroonUp->Draw("al");
