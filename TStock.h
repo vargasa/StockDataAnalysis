@@ -3,42 +3,65 @@
 
 #include "TGraph.h"
 #include "TGraphErrors.h"
-#include "TMutligraph.h"
+#include "TGraphAsymmErrors.h"
+#include "TApplication.h"
+#include "TSystem.h"
+#include "TMultiGraph.h"
 #include "TH1F.h"
 #include "THStack.h"
 #include "TFile.h"
+#include "TTree.h"
+#include "TTreeReader.h"
+#include "TTreeReaderValue.h"
+#include "TTreeReaderArray.h"
+#include "TMath.h"
+#include "TTimeStamp.h"
 
-Class TStock {
+// using pointers of:
+class TGraph;
+class TMultiGraph;
+class THStack;
+class TH1F;
+class TTree;
 
-  RQ_OBJECT("TStock");
+class TStock {
 
- private:
+ protected:
   TString fSymbol;
   TString fFreq;
   TTimeStamp fStartDate;
   TTimeStamp fEndDate;
-  
-  TFile *GetData();
   TFile *f;
-  
-  Double_t GetTimeWidth(TString);
-  Int_t GetIndex GetIndex(Int_t Event, Int_t Interval);
+  TTree *fTree;
+
+  TTreeReader fReader;
+  TTreeReaderValue<TTimeStamp> fTS;
+  TTreeReaderValue<Float_t> fO;
+  TTreeReaderValue<Float_t> fL;
+  TTreeReaderValue<Float_t> fH;
+  TTreeReaderValue<Float_t> fC;
+  TTreeReaderValue<Int_t> fVol;
+ 
+  Double_t GetTimeWidth(TString Freq = "1wk");
+  Int_t GetIndex(Int_t Event, Int_t Interval);
 
  public:
+  TStock();
   TStock(TString Symbol,TString Freq, TTimeStamp StartDate, TTimeStamp EndDate);
   ~TStock();
-  TGraph *GetAroonDown(Int_t Interval);
-  TGraph *GetAroonUp(Int_t Interval);
-  TGraph *GetAroon(Int_t Interval);
-  TGraph *GetSMA(Int_t Interval, Option_t *Option);
-  TGraph *GetVWMA(Int_t Interval, Option_t *Option);
-  TGraphErrors *GetBollingerBands(Int_t Interval, Float_t fW);
+  TTree *GetData();
+  TGraph *GetAroonDown(Int_t Interval = 25);
+  TGraph *GetAroonUp(Int_t Interval = 25);
+  TGraph *GetAroon(Int_t Interval = 25);
+  TGraph *GetSMA(Int_t Interval = 6, Option_t *Option="close");
+  TGraph *GetVWMA(Int_t Interval = 25, Option_t *Option="close");
+  TGraphErrors *GetBollingerBands(Int_t Interval = 20, Float_t fW = 2.0);
   TH1F *GetDerivative(TGraph *fg);
   THStack *GetVolume();
   TMultiGraph *GetCandleStick();
 
   ClassDef(TStock,0);
   
-}
+};
 
 #endif

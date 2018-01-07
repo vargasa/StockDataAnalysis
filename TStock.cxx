@@ -1,22 +1,42 @@
-ClassImp(WGraphsIP);
+#include "TStock.h"
 
+ClassImp(TStock);
 
-TStock::TStock(TString Symbol,TString Freq, TTimeStamp StartDate, TTimeStamp EndDate){
+////////////////////////////////////////////////////////////////////////////////
+TStock::TStock(){
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+TStock::TStock(TString Symbol,TString Freq, TTimeStamp StartDate, TTimeStamp EndDate)
+  :   fTS(fReader,"fTimeStamp"),
+      fO(fReader,"fOpen"),
+      fL(fReader,"fLow"),
+      fH(fReader,"fHigh"),
+      fC(fReader,"fClose"),
+      fVol(fReader,"fVolume")
+{
 
   fSymbol = Symbol;
   fFreq = Freq;
   fStartDate = StartDate;
   fEndDate = fEndDate;
-  
+
+  fTree = GetData(); // fReader is being defied in TStock::GetData()
+  if (fTree) fReader.SetTree(fTree);
+    
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// Time width window for Charts
 
-Double_t TStock::GetTimeWidth(TString Freq = "1wk"){
+Double_t TStock::GetTimeWidth(TString Freq){
 
   // Definition of the candlestick width
   // Period of time in seconds
   Freq.ToLower();
-  Double_t twidth;
+  Double_t twidth = 86400.;
   if (Freq.Contains("1d")) {
     twidth = 86400.;
   } else if(Freq.Contains("1wk")) {
@@ -29,56 +49,408 @@ Double_t TStock::GetTimeWidth(TString Freq = "1wk"){
 
 }
 
+////////////////////////////////////////////////////////////////////////////////
+/// Compute index to reuse array filling it cyclically
+
 Int_t TStock::GetIndex(Int_t Event, Int_t Interval){
-
-  Int_t Index = 0;
-  Int_t Aux = (Event%Interval - 1);
-
-  if( Aux >= 0 ) {
-    Index = Aux;
-  } else {
-    Index = Interval-1;
-  }
-  return Index;
+  
+  return Event%Interval;
   
 }
 
-TTree* TStock::GetData(){
+////////////////////////////////////////////////////////////////////////////////
+/// Get data from Yahoo! Finance API using getData.sh Shell Script
+
+TTree *TStock::GetData(){
+
+  TTree *tree = new TTree(fSymbol,"From CSV File");
+
+  Int_t ans = gSystem->Exec(Form("sh getData.sh '%s' '%s' '%d' '%d' /tmp/",
+				 fSymbol.Data(),fFreq.Data(),fStartDate.GetDate(),fEndDate.GetDate()));
+
+  if (ans == 0) {
     
+    tree->ReadFile("/tmp/"+fSymbol+".csv",
+		   "fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
+
+    fReader.SetTree(tree);
+    TTreeReaderArray<char> fDt(fReader,"fDate");
+  
+    TTimeStamp date;
+    TBranch *bts = tree->Branch("fTimeStamp", &date);
+    
+    while(fReader.Next()){
+      TString fSDt = static_cast<char*>(fDt.GetAddress());
+      
+      Int_t yy, mm, dd;
+      if (sscanf(fSDt.Data(), "%d-%d-%d", &yy, &mm, &dd) == 3){
+	date = TTimeStamp(yy,mm,dd,00,00,00,0,false);
+	bts->Fill();
+      } 
+    }
+
+    tree->ResetBranchAddresses();
+    
+  } else {
+    Error("TStock::GetData()","Data Download was unsucessfull");
+    gApplication->Terminate();
+  }
+
+  return tree;
 }
 
-TGraph* TStock::GetAroonDown(Int_t Interval){
+////////////////////////////////////////////////////////////////////////////////
+/// AroonDown
+
+TGraph *TStock::GetAroonDown(Int_t Interval) {
+  
+  Int_t Event = 0;
+  Float_t Price[Interval];
+  TGraph *GAD = new TGraph();
+
+  fReader.Restart();
+  
+  while(fReader.Next()){
+
+    Int_t inow = GetIndex(Event,Interval);
+
+    Price[inow] = *fL;
+
+    if(Event >= Interval){
+
+      Float_t aroondown = 0;
+      Int_t MinIndex = 0;
+      
+      MinIndex = TMath::LocMin(Interval,Price);
+            
+      if ( MinIndex < inow || MinIndex == inow ) {
+    	aroondown = (Float_t)(Interval - (inow - MinIndex))*100; 
+      } else {
+    	aroondown = (Float_t)(Interval - (Interval-MinIndex+inow))*100;	
+      }
+      aroondown = aroondown/((Float_t)Interval);
+      GAD->SetPoint(GAD->GetN(),fTS->AsDouble(),aroondown);
+    }
+    
+    Event++;
+  }
+
+  GAD->SetLineWidth(2);
+  GAD->SetLineStyle(1);
+  GAD->SetTitle(Form("%s AroonDown(%d);Date;AroonDown",fSymbol.Data(),Interval));
+  GAD->GetXaxis()->SetTimeDisplay(1);
+  GAD->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  GAD->GetXaxis()->SetTimeOffset(0,"gmt");
+  GAD->GetYaxis()->SetRangeUser(0.,110.);
+  GAD->SetLineColor(kRed);
+  
+  return GAD;
 
 }
 
-TGraph* TStock::GetAroonUp(Int_t Interval){
+////////////////////////////////////////////////////////////////////////////////
+/// AroonUp
+
+TGraph *TStock::GetAroonUp(Int_t Interval){
+  
+  Int_t Event = 0;
+  Float_t Price[Interval];
+  TGraph *GAU = new TGraph();
+
+  fReader.Restart();
+  
+  while(fReader.Next()){
+	
+    Float_t aroonup;
+    Int_t inow = GetIndex(Event,Interval);
+
+    Price[inow] = *fH;
+    
+    if (Event >= Interval) {
+      
+      Int_t MaxIndex;
+      MaxIndex  = TMath::LocMax(Interval,Price);
+      if ( MaxIndex < inow || MaxIndex == inow ) {
+    	aroonup = (Float_t)(Interval - (inow - MaxIndex))*100;
+	
+      } else {
+    	aroonup = (Float_t)(Interval - (Interval-MaxIndex+inow))*100;	
+      }
+      aroonup = aroonup/(Float_t)Interval;
+    
+      GAU->SetPoint(GAU->GetN(),fTS->AsDouble(),aroonup); 
+    }
+
+    Event++;
+  }
+  GAU->SetLineWidth(2);
+  GAU->SetLineStyle(1);
+  GAU->SetTitle(Form("%s AroonUp(%d);Date;AroonUp",fSymbol.Data(),Interval));
+  GAU->GetXaxis()->SetTimeDisplay(1);
+  GAU->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  GAU->GetXaxis()->SetTimeOffset(0,"gmt");
+  GAU->GetYaxis()->SetRangeUser(0.,110.);
+  GAU->SetLineColor(kGreen);
+
+  return GAU;
 
 }
 
-TGraph* TStock::GetAroon(Int_t Interval){
+////////////////////////////////////////////////////////////////////////////////
+/// Aroon Oscillator
+
+TGraph *TStock::GetAroon(Int_t Interval){
+
+  TGraph *GAroon = new TGraph();
+  TGraph *GAU = this->GetAroonUp(Interval);
+  TGraph *GAD = this->GetAroonDown(Interval);
+  for (Int_t i = 0; i < GAU->GetN(); i++){
+    Double_t x1, y1, x2, y2;
+    GAU->GetPoint(i,x1,y1);
+    GAD->GetPoint(i,x2,y2);
+    GAroon->SetPoint(i,x1,y1-y2);
+  }
+  GAroon->SetLineWidth(2);
+  GAroon->SetLineStyle(1);
+  GAroon->SetLineColor(kBlue);
+  GAroon->SetTitle(Form("%s Aroon Oscillator(%d);Date;Aroon",fSymbol.Data(),Interval));
+  GAroon->GetXaxis()->SetTimeDisplay(1);
+  GAroon->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  GAroon->GetXaxis()->SetTimeOffset(0,"gmt");
+  GAroon->GetYaxis()->SetRangeUser(-110.,110.);
+
+
+  return GAroon;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+/// Simple Moving Average SMA
+
+TGraph *TStock::GetSMA(Int_t Interval, Option_t *Option){
+  
+  Int_t Event = 0;
+
+  Float_t Price[Interval];
+  TGraph *GSMA = new TGraph();
+
+  fReader.Restart();
+  
+  while(fReader.Next()){
+    
+    Price[GetIndex(Event,Interval)] = *fC;
+
+    if (Event >= Interval){
+      Float_t SMA = TMath::Mean(Interval,&Price[0]);     
+      GSMA->SetPoint(GSMA->GetN(),fTS->GetSec(),SMA);
+    }
+    Event++;
+    
+  }
+  GSMA->SetLineWidth(2);
+  GSMA->SetLineStyle(1);
+  GSMA->SetTitle(Form("%s SMA(%d);Date;SMA",fSymbol.Data(),Interval));
+  GSMA->GetXaxis()->SetTimeDisplay(1);
+  GSMA->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  GSMA->GetXaxis()->SetTimeOffset(0,"gmt");
+
+  return GSMA;
+
 
 }
 
-TGraph* TStock::GetSMA(Int_t Interval, Option_t *Option){
+////////////////////////////////////////////////////////////////////////////////
+/// Volume Weighted Moving Average
+
+TGraph *TStock::GetVWMA(Int_t Interval, Option_t *Option){
+  
+  Int_t Event = 0;
+
+  Float_t Price[Interval];
+  Double_t Volume[Interval];
+  TGraph *GVWMA = new TGraph();
+
+  fReader.Restart();
+  
+  while(fReader.Next()){
+
+    Int_t n = GetIndex(Event,Interval);
+    Price[n] = *fC;
+    Volume[n] = (Double_t)(*fVol);
+
+    if (Event >= Interval){
+      Float_t VMWA = TMath::Mean(&Price[0],&Price[Interval],&Volume[0]);
+      GVWMA->SetPoint(GVWMA->GetN(),fTS->GetSec(),VMWA);
+    }
+    Event++;
+    
+  }
+  GVWMA->SetLineColor(kRed);
+  GVWMA->SetLineWidth(2);
+  GVWMA->SetLineStyle(7);
+  GVWMA->SetTitle(Form("%s SMA(%d);Date;SMA",fSymbol.Data(),Interval));
+  GVWMA->GetXaxis()->SetTimeDisplay(1);
+  GVWMA->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  GVWMA->GetXaxis()->SetTimeOffset(0,"gmt");
+
+  return GVWMA;
 
 }
 
-TGraph* TStock::GetVWMA(Int_t Interval, Option_t *Option){
+////////////////////////////////////////////////////////////////////////////////
+/// BollingerBands
+
+TGraphErrors *TStock::GetBollingerBands(Int_t Interval, Float_t fW){
+
+  TGraph *GSMA = GetSMA(Interval, "close");
+
+  TGraphErrors *GBB = new TGraphErrors();
+
+  Float_t Price[Interval];
+
+  Int_t Event = 0;
+  Int_t inow = 0;
+
+  fReader.Restart();
+  
+  while(fReader.Next()){
+    
+    inow = GetIndex(Event, Interval);
+
+    Price[inow] = *fC;
+
+    if ( Event >= Interval ) {
+      Double_t x1, y1;
+      Double_t b;
+      GSMA->GetPoint(Event-Interval,x1,y1);
+      b = fW*TMath::StdDev(Interval,&Price[0]);
+      Int_t n = GBB->GetN();
+      GBB->SetPoint(n,x1,y1);
+      GBB->SetPointError(n,1.,b);
+    }
+    
+    Event++;
+  }
+  // Can "3C" Option be added?
+  GBB->SetFillColor(6);
+  GBB->SetFillStyle(3003);
+  GBB->GetXaxis()->SetTimeDisplay(1);
+  GBB->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  GBB->GetXaxis()->SetTimeOffset(0,"gmt");
+
+  GBB->SetTitle(Form("%s BollingerBands(%d);Date;BB",fSymbol.Data(),Interval));  
+  return GBB;
 
 }
 
-TGraphErrors* TStock::GetBollingerBands(Int_t Interval, Float_t fW){
+
+////////////////////////////////////////////////////////////////////////////////
+/// Relative numerical derivative working only for equaly distant x-data
+/// Expressed in %terms with the previous period value as reference
+
+TH1F *TStock::GetDerivative(TGraph *fg){
+  
+  Int_t nbins = TMath::Nint((Double_t)(fEndDate.GetSec() - fStartDate.GetSec()) / GetTimeWidth(fFreq));
+
+  TH1F *GDerivative = new TH1F("GDerivative","GDerivative",nbins,fStartDate.GetSec(),fEndDate.GetSec());
+
+  for (Int_t i = 1; i < fg->GetN(); i++){
+    Double_t x1,y1,x2,y2;
+    fg->GetPoint(i-1,x1,y1);
+    fg->GetPoint(i,x2,y2);
+    Double_t dy = 100.*(y2 - y1)/y1;
+    GDerivative->Fill(x2,dy);
+  }
+  GDerivative->SetStats(false);
+  GDerivative->SetFillColor(38);
+  GDerivative->SetOption("HIST");
+  GDerivative->GetXaxis()->SetTimeDisplay(1);
+  GDerivative->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  GDerivative->GetXaxis()->SetTimeOffset(0,"gmt");
+
+  return GDerivative;
 
 }
 
-TH1F* TStock::GetDerivative(TGraph *fg){
+////////////////////////////////////////////////////////////////////////////////
+/// Volume Graph
 
+THStack *TStock::GetVolume(){
+  
+  THStack *HSVol = new THStack("HSVol","Volume");
+
+  Int_t nbins = TMath::Nint((Double_t)(fEndDate.GetSec() - fStartDate.GetSec()) / GetTimeWidth(fFreq));
+  
+  static TH1I *HVolG = new TH1I("HVolG","HVolG",nbins,fStartDate.GetSec(),fEndDate.GetSec());
+  static TH1I *HVolR = new TH1I("HVolR","HVolR",nbins,fStartDate.GetSec(),fEndDate.GetSec());
+
+  fReader.Restart();
+    
+  while(fReader.Next()){
+
+    if(*fO < *fC){
+      HVolG->Fill(fTS->GetSec(),*fVol);
+    } else {
+      HVolR->Fill(fTS->GetSec(),*fVol);
+    }
+
+  }
+  HVolG->SetFillColor(kGreen);
+  HVolR->SetFillColor(kRed);
+  HSVol->Add(HVolG,"HIST");
+  HSVol->Add(HVolR,"HIST");
+  HSVol->SetTitle(Form("%s Volume;Date;Volume",fSymbol.Data()));
+  return HSVol;
+  
 }
 
-THStack* TStock::GetVolume(){
 
-}
+////////////////////////////////////////////////////////////////////////////////
+/// CandleStick
 
-TMultiGraph* TStock::GetCandleStick(){
+TMultiGraph *TStock::GetCandleStick(){
+
+  TMultiGraph *GCandle = new TMultiGraph();
+  static TGraphErrors *GOCG = new TGraphErrors(); //OpenCloseGreen
+  static TGraphErrors *GOCR = new TGraphErrors(); //OpenCloseRed
+  static TGraphAsymmErrors *GHL = new TGraphAsymmErrors(); //HighLow
+  
+  fReader.Restart();
+
+  while(fReader.Next()){
+    
+    Double_t mdl = (*fO + *fC)/2.;
+    Double_t l1 = TMath::Abs(*fO - mdl);
+    
+    Double_t twidth = GetTimeWidth(fFreq) * 0.33;
+
+    Double_t tt = fTS->AsDouble();
+
+    if (*fO < *fC) { 
+      Int_t n = GOCG->GetN();
+      GOCG->SetPoint(n,tt, mdl);
+      GOCG->SetPointError(n,twidth,l1);
+    } else {
+      Int_t n = GOCR->GetN();
+      GOCR->SetPoint(n,tt, mdl);
+      GOCR->SetPointError(n,twidth,l1);
+    }
+    Int_t n = GHL->GetN();
+    GHL->SetPoint(n,tt, mdl);
+    Double_t l = mdl - *fL;
+    Double_t h = *fH - mdl;
+    GHL->SetPointError(n,0.,0.,l,h);
+  }
+  
+  GOCR->SetFillColor(kRed);
+  GOCG->SetFillColor(kGreen);
+  GCandle->Add(GHL,"E");
+  GCandle->Add(GOCG,"E2");
+  GCandle->Add(GOCR,"E2");
+  GCandle->SetTitle(Form("%s CandleStick;Date;Price",fSymbol.Data()));
+  // GCandle->GetXaxis()->SetTimeDisplay(1);
+  // GCandle->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  // GCandle->GetXaxis()->SetTimeOffset(0,"gmt");
+  
+  return GCandle;
 
 }
