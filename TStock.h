@@ -47,7 +47,7 @@ class TStock {
 
  public:
   TStock();
-  TStock(TString Symbol,TString Freq, TTimeStamp StartDate, TTimeStamp EndDate);
+  TStock(TString Symbol,TString Freq, TString StartData, TString EndDate);
   ~TStock();
   TTree *GetData();
   TGraph *GetAroonDown(Int_t Interval = 25);

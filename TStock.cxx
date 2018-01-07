@@ -9,7 +9,7 @@ TStock::TStock(){
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TStock::TStock(TString Symbol,TString Freq, TTimeStamp StartDate, TTimeStamp EndDate)
+TStock::TStock(TString Symbol,TString Freq, TString StartDate = "2009-01-01 00:00:00", TString EndDate = "now")
   :   fTS(fReader,"fTimeStamp"),
       fO(fReader,"fOpen"),
       fL(fReader,"fLow"),
@@ -18,12 +18,30 @@ TStock::TStock(TString Symbol,TString Freq, TTimeStamp StartDate, TTimeStamp End
       fVol(fReader,"fVolume")
 {
 
+  Int_t yy, mm, dd;
+  Int_t hh, min, sec;
+  TTimeStamp sdate, edate;
+  
+  if (sscanf(StartDate.Data(), "%d-%d-%d %d:%d:%d", &yy, &mm, &dd, &hh, &min, &sec) == 6){
+    sdate = TTimeStamp(yy,mm,dd,hh,min,sec,0,false);
+  } else {
+    Error("TStock::TStock()","StartDate not set propperly. Must be: yy-mm-dd hour:min:sec");
+  }
+
+  if(EndDate.Contains("now")) {
+    edate = TTimeStamp();
+  } else if (sscanf(EndDate.Data(), "%d-%d-%d %d:%d:%d", &yy, &mm, &dd, &hh, &min, &sec) == 6){
+    edate = TTimeStamp(yy,mm,dd,hh,min,sec,0,false); 
+  } else {
+    Error("TStock::TStock()","EndDate not set propperly. Must be: yy-mm-dd hour:min:sec");
+  }
+
   fSymbol = Symbol;
   fFreq = Freq;
-  fStartDate = StartDate;
-  fEndDate = fEndDate;
+  fStartDate = sdate;
+  fEndDate = edate;
 
-  fTree = GetData(); // fReader is being defied in TStock::GetData()
+  fTree = GetData();
   if (fTree) fReader.SetTree(fTree);
     
 }
