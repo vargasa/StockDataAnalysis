@@ -31,7 +31,6 @@ class TStock {
   TString fFreq;
   TTimeStamp fStartDate;
   TTimeStamp fEndDate;
-  TFile *f;
   TTree *fTree;
 
   TTreeReader fReader;
@@ -42,8 +41,8 @@ class TStock {
   TTreeReaderValue<Float_t> fC;
   TTreeReaderValue<Int_t> fVol;
  
-  Double_t GetTimeWidth(TString Freq = "1wk");
-  Int_t GetIndex(Int_t Event, Int_t Interval);
+  Double_t GetTimeWidth(TString Freq = "1wk") const;
+  Int_t GetIndex(Int_t Event, Int_t Interval) const;
 
  public:
   TStock();

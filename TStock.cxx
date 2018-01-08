@@ -8,6 +8,13 @@ TStock::TStock(){
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+TStock::~TStock(){
+
+  if(fTree) delete fTree;
+
+}
+
+////////////////////////////////////////////////////////////////////////////////
 
 TStock::TStock(TString Symbol,TString Freq, TString StartDate = "2009-01-01 00:00:00", TString EndDate = "now")
   :   fTS(fReader,"fTimeStamp"),
@@ -46,7 +53,7 @@ TStock::TStock(TString Symbol,TString Freq, TString StartDate = "2009-01-01 00:0
 ////////////////////////////////////////////////////////////////////////////////
 /// Time width window for Charts
 
-Double_t TStock::GetTimeWidth(TString Freq){
+Double_t TStock::GetTimeWidth(TString Freq) const{
 
   // Definition of the candlestick width
   // Period of time in seconds
@@ -67,7 +74,7 @@ Double_t TStock::GetTimeWidth(TString Freq){
 ////////////////////////////////////////////////////////////////////////////////
 /// Compute index to reuse array filling it cyclically
 
-Int_t TStock::GetIndex(Int_t Event, Int_t Interval){
+Int_t TStock::GetIndex(Int_t Event, Int_t Interval) const{
   
   return Event%Interval;
   
@@ -119,6 +126,11 @@ TTree *TStock::GetData(){
 /// AroonDown
 
 TGraph *TStock::GetAroonDown(Int_t Interval) {
+
+  if (!fTree) {
+    Error("TStock::GetAroonDown()","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
   
   Int_t Event = 0;
   Float_t Price[Interval];
@@ -168,6 +180,11 @@ TGraph *TStock::GetAroonDown(Int_t Interval) {
 /// AroonUp
 
 TGraph *TStock::GetAroonUp(Int_t Interval){
+
+  if (!fTree) {
+    Error("TStock::GetAroonUp()","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
   
   Int_t Event = 0;
   Float_t Price[Interval];
@@ -217,6 +234,11 @@ TGraph *TStock::GetAroonUp(Int_t Interval){
 
 TGraph *TStock::GetAroon(Int_t Interval){
 
+  if(!fTree){
+    Error("TStock::GetAroon","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
+
   TGraph *GAroon = new TGraph();
   TGraph *GAU = this->GetAroonUp(Interval);
   TGraph *GAD = this->GetAroonDown(Interval);
@@ -235,7 +257,6 @@ TGraph *TStock::GetAroon(Int_t Interval){
   GAroon->GetXaxis()->SetTimeOffset(0,"gmt");
   GAroon->GetYaxis()->SetRangeUser(-110.,110.);
 
-
   return GAroon;
 }
 
@@ -243,6 +264,11 @@ TGraph *TStock::GetAroon(Int_t Interval){
 /// Simple Moving Average SMA
 
 TGraph *TStock::GetSMA(Int_t Interval, Option_t *Option){
+
+  if (!fTree) {
+    Error("TStock::GetSMA()","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
   
   Int_t Event = 0;
 
@@ -278,6 +304,11 @@ TGraph *TStock::GetSMA(Int_t Interval, Option_t *Option){
 /// Volume Weighted Moving Average
 
 TGraph *TStock::GetVWMA(Int_t Interval, Option_t *Option){
+
+  if (!fTree) {
+    Error("TStock::GetVWMA()","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
   
   Int_t Event = 0;
 
@@ -316,6 +347,11 @@ TGraph *TStock::GetVWMA(Int_t Interval, Option_t *Option){
 /// BollingerBands
 
 TGraphErrors *TStock::GetBollingerBands(Int_t Interval, Float_t fW){
+
+  if (!fTree) {
+    Error("TStock::GetBollingerBands()","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
 
   TGraph *GSMA = GetSMA(Interval, "close");
 
@@ -391,6 +427,11 @@ TH1F *TStock::GetDerivative(TGraph *fg){
 /// Volume Graph
 
 THStack *TStock::GetVolume(){
+
+  if (!fTree) {
+    Error("TStock::GetVolume()","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
   
   THStack *HSVol = new THStack("HSVol","Volume");
 
@@ -424,6 +465,11 @@ THStack *TStock::GetVolume(){
 /// CandleStick
 
 TMultiGraph *TStock::GetCandleStick(){
+
+  if (!fTree) {
+    Error("TStock::GetCandleStick()","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
 
   TMultiGraph *GCandle = new TMultiGraph();
   static TGraphErrors *GOCG = new TGraphErrors(); //OpenCloseGreen
