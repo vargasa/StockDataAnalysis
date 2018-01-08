@@ -40,10 +40,7 @@ TStock::TStock(TString Symbol,TString Freq, TString StartDate = "2009-01-01 00:0
   fFreq = Freq;
   fStartDate = sdate;
   fEndDate = edate;
-
-  fTree = GetData();
-  if (fTree) fReader.SetTree(fTree);
-    
+  
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -86,33 +83,34 @@ TTree *TStock::GetData(){
   Int_t ans = gSystem->Exec(Form("sh getData.sh '%s' '%s' '%d' '%d' /tmp/",
 				 fSymbol.Data(),fFreq.Data(),fStartDate.GetDate(),fEndDate.GetDate()));
 
-  if (ans == 0) {
-    
-    tree->ReadFile("/tmp/"+fSymbol+".csv",
-		   "fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
-
-    fReader.SetTree(tree);
-    TTreeReaderArray<char> fDt(fReader,"fDate");
-  
-    TTimeStamp date;
-    TBranch *bts = tree->Branch("fTimeStamp", &date);
-    
-    while(fReader.Next()){
-      TString fSDt = static_cast<char*>(fDt.GetAddress());
-      
-      Int_t yy, mm, dd;
-      if (sscanf(fSDt.Data(), "%d-%d-%d", &yy, &mm, &dd) == 3){
-	date = TTimeStamp(yy,mm,dd,00,00,00,0,false);
-	bts->Fill();
-      } 
-    }
-
-    tree->ResetBranchAddresses();
-    
-  } else {
+  if (ans != 0) {
     Error("TStock::GetData()","Data Download was unsucessfull");
-    gApplication->Terminate();
+    return 0;
   }
+    
+  tree->ReadFile("/tmp/"+fSymbol+".csv",
+		 "fDate/C:fOpen/F:fHigh/F:fLow/F:fClose/F:fCloseAdj/F:fVolume/I",',');
+  
+  fReader.SetTree(tree);
+  TTreeReaderArray<char> fDt(fReader,"fDate");
+  
+  TTimeStamp date;
+  TBranch *bts = tree->Branch("fTimeStamp", &date);
+  
+  while(fReader.Next()){
+    TString fSDt = static_cast<char*>(fDt.GetAddress());
+    
+    Int_t yy, mm, dd;
+    if (sscanf(fSDt.Data(), "%d-%d-%d", &yy, &mm, &dd) == 3){
+      date = TTimeStamp(yy,mm,dd,00,00,00,0,false);
+      bts->Fill();
+    } 
+  }
+  
+  tree->ResetBranchAddresses();
+
+  fTree = tree;
+  fReader.SetTree(fTree);
 
   return tree;
 }
@@ -369,7 +367,7 @@ TH1F *TStock::GetDerivative(TGraph *fg){
   
   Int_t nbins = TMath::Nint((Double_t)(fEndDate.GetSec() - fStartDate.GetSec()) / GetTimeWidth(fFreq));
 
-  TH1F *GDerivative = new TH1F("GDerivative","GDerivative",nbins,fStartDate.GetSec(),fEndDate.GetSec());
+  TH1F *GDerivative = new TH1F(Form("%sGDerivative",fSymbol.Data()),"GDerivative",nbins,fStartDate.GetSec(),fEndDate.GetSec());
 
   for (Int_t i = 1; i < fg->GetN(); i++){
     Double_t x1,y1,x2,y2;

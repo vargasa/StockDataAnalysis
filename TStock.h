@@ -64,4 +64,9 @@ class TStock {
   
 };
 
+
+#if defined(__CLING__)
+#include "TStock.cxx"
+#endif
+
 #endif
