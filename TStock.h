@@ -58,7 +58,11 @@ class TStock {
   TH1F *GetDerivative(TGraph *fg);
   THStack *GetVolume();
   TMultiGraph *GetCandleStick();
-
+  TString GetSymbol() const {return fSymbol;}
+  TString GetFreq() const {return fFreq;}
+  TTimeStamp GetStartDate() const {return fStartDate;}
+  TTimeStamp GetEndDate() const {return fEndDate;}
+  
   ClassDef(TStock,0);
   
 };

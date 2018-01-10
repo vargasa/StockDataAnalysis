@@ -403,7 +403,8 @@ TH1F *TStock::GetDerivative(TGraph *fg){
   
   Int_t nbins = TMath::Nint((Double_t)(fEndDate.GetSec() - fStartDate.GetSec()) / GetTimeWidth(fFreq));
 
-  TH1F *GDerivative = new TH1F(Form("%sGDerivative",fSymbol.Data()),"GDerivative",nbins,fStartDate.GetSec(),fEndDate.GetSec());
+  TH1F *GDerivative = new TH1F(Form("GDerivative%s",fSymbol.Data()),"Derivative",
+			       nbins,fStartDate.GetSec(),fEndDate.GetSec());
 
   for (Int_t i = 1; i < fg->GetN(); i++){
     Double_t x1,y1,x2,y2;
@@ -433,12 +434,14 @@ THStack *TStock::GetVolume(){
     return 0;
   }
   
-  THStack *HSVol = new THStack("HSVol","Volume");
+  THStack *HSVol = new THStack(Form("HSVol%s",fSymbol.Data()),"Volume");
 
   Int_t nbins = TMath::Nint((Double_t)(fEndDate.GetSec() - fStartDate.GetSec()) / GetTimeWidth(fFreq));
   
-  static TH1I *HVolG = new TH1I("HVolG","HVolG",nbins,fStartDate.GetSec(),fEndDate.GetSec());
-  static TH1I *HVolR = new TH1I("HVolR","HVolR",nbins,fStartDate.GetSec(),fEndDate.GetSec());
+  TH1I *HVolG = new TH1I(Form("HVolG%s",fSymbol.Data()),"HVolG",
+				nbins,fStartDate.GetSec(),fEndDate.GetSec());
+  TH1I *HVolR = new TH1I(Form("HVolR%s",fSymbol.Data()),"HVolR",
+				nbins,fStartDate.GetSec(),fEndDate.GetSec());
 
   fReader.Restart();
     
@@ -471,10 +474,10 @@ TMultiGraph *TStock::GetCandleStick(){
     return 0;
   }
 
-  TMultiGraph *GCandle = new TMultiGraph();
-  static TGraphErrors *GOCG = new TGraphErrors(); //OpenCloseGreen
-  static TGraphErrors *GOCR = new TGraphErrors(); //OpenCloseRed
-  static TGraphAsymmErrors *GHL = new TGraphAsymmErrors(); //HighLow
+  TMultiGraph *GCandle = new TMultiGraph(Form("GCandle%s",fSymbol.Data()),"CandleStick");
+  TGraphErrors *GOCG = new TGraphErrors(); //OpenCloseGreen
+  TGraphErrors *GOCR = new TGraphErrors(); //OpenCloseRed
+  TGraphAsymmErrors *GHL = new TGraphAsymmErrors(); //HighLow
   
   fReader.Restart();
 
