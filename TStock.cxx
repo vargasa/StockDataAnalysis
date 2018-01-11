@@ -47,6 +47,7 @@ TStock::TStock(TString Symbol,TString Freq, TString StartDate = "2009-01-01 00:0
   fFreq = Freq;
   fStartDate = sdate;
   fEndDate = edate;
+  fTree = 0;
   
 }
 
@@ -84,6 +85,8 @@ Int_t TStock::GetIndex(Int_t Event, Int_t Interval) const{
 /// Get data from Yahoo! Finance API using getData.sh Shell Script
 
 TTree *TStock::GetData(){
+
+  if(fTree) return fTree;
 
   TTree *tree = new TTree(fSymbol,"From CSV File");
 

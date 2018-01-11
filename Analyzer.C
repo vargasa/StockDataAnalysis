@@ -2,6 +2,85 @@
 #include <fstream>
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Hi-Lo Analysis
+
+TCanvas *HiLoAnalysis(TStock *Stock){
+  
+  Float_t xmin = -0.5;
+  Float_t xmax = 0.5;
+  Int_t nbins = 100;
+  TString Symbol = Stock->GetSymbol();
+
+  TTree *t = Stock->GetData();
+  TTreeReader fReader(t);
+  TTreeReaderValue<Float_t> fH(fReader,"fHigh");
+  TTreeReaderValue<Float_t> fL(fReader,"fLow");
+
+  TH1F *fHDiffLL = new TH1F("fHDiffLL_"+Symbol,
+			    Symbol+";Difference between "+Stock->GetFreq()+" high and previous "
+			    +Stock->GetFreq()+" low prices;Counts",
+			    nbins,xmin,xmax);
+  TH1F *fHDiffHH = new TH1F("fHDiffHH_"+Symbol,
+			    Symbol+";Difference between "+Stock->GetFreq()+" high and previous "
+			    +Stock->GetFreq()+" high prices;Counts",
+			    nbins,xmin,xmax);
+  TH1F *fHDiffLH = new TH1F("fHDiffLH_"+Symbol,
+			    Symbol+";Difference between "+Stock->GetFreq()+" high and previous "
+			    +Stock->GetFreq()+" low prices;Counts",
+			    nbins,xmin,xmax);
+
+  Float_t fPrevL;
+  Float_t fPrevH;
+
+  Int_t fEvent = 0;
+
+  Float_t fNPriceHH;
+  Float_t fNPriceLL;
+  
+  while(fReader.Next()){
+
+    fEvent++;
+    fHDiffLL->Fill( (*fL - fPrevL)/(fPrevL) );
+    fHDiffLH->Fill( (*fH - fPrevL)/(fPrevL) );
+    fHDiffHH->Fill( (*fH - fPrevH)/(fPrevH) );
+    
+    fPrevL = *fL;
+    fPrevH = *fH; 
+
+  }
+
+  TCanvas *cHiLo = new TCanvas(Form("cHiLo%s",Symbol.Data()),
+			       Form("cHiLo%s",Symbol.Data()),
+			       2048,1152);
+  cHiLo->Divide(2,2);
+  
+  cHiLo->cd(1);
+  //Need to Check: Is it a Poisson Distribution?
+  TF1 *fPoisson = new TF1("fPoisson","[0]*TMath::Power(([1]/[2]),(x/[2]))*(TMath::Exp(-([1]/[2])))/TMath::Gamma((x/[2])+1)", -0.1, 0.5);
+  gStyle->SetOptFit();
+  fPoisson->SetParameters(1, 1, 1);
+  fHDiffLH->Fit("fPoisson","QR");
+  fHDiffLH->Draw();
+
+  cHiLo->cd(2);
+  TF1 *fGausLL = new TF1("GausLL","gaus");
+  fHDiffLL->Fit("GausLL","QM+");
+  Float_t fHPriceLL = fPrevL*(1+fGausLL->GetParameter(1));
+  printf("Next Low price: %f\n",fHPriceLL);
+  fHDiffLL->Draw();
+
+  cHiLo->cd(3);
+  TF1 *fGausHH = new TF1("GausHH","gaus");
+  fHDiffHH->Fit("GausHH","QM+");
+  Float_t fHPriceHH = fPrevH*(1 + fGausHH->GetParameter(1));
+  printf("Next High price: %f\n",fHPriceHH);
+  fHDiffHH->Draw();
+  
+  return cHiLo;
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Simple Moving Average Crossover finder, fPeriod terms behind the actual term
 /// are scanned for a crossover with a minimum relative difference of fDelta
 /// The difference is computed between the last data point available and the crossover
@@ -145,12 +224,14 @@ Int_t Analyzer(TString filename = "Symbols/NASDAQ.txt") {
     TTree *data = s1->GetData();
     if (data) {
       
-      TCanvas *cana = SMACrossoverScreener(s1,6,10,6,0.00);
+      TCanvas *cana = SMACrossoverScreener(s1,6,10,6,0.01);
+      //TCanvas *cana = HiLoAnalysis(s1);
       if (cana) {	
 	if(fOut->GetListOfKeys()->Contains(Symbol.Data())){
 	  fOut->Delete(s1->GetSymbol()+";1");
 	}
-      	cana->Write(s1->GetSymbol().Data());
+	//cana->Write(Form("HiLo_%s",s1->GetSymbol().Data()));
+	cana->Write(Form("SMACrossover_%s",s1->GetSymbol().Data()));
       }
       delete cana;
     }
