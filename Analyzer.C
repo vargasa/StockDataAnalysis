@@ -22,6 +22,48 @@ Bool_t PositiveDerivative(TStock *Stock, Int_t SMAPeriod, Int_t Period, Float_t 
 }
 
 /////////////////////////////////////////////////////////////////////
+// Croossover of IFast over ISlow in the last *Period*
+// Minimum difference between (now) between IFast and ISlow is Delta(%)
+Bool_t Crossover(TStock *Stock, Int_t IFast = 6, Int_t ISlow = 10,
+		 Int_t Period = 5, Float_t Delta = 0.0){
+
+  // Look for SMA Crossovers
+  TGraph *Fast = Stock->GetSMA(IFast);
+  TGraph *Slow = Stock->GetSMA(ISlow);
+  if (Slow->GetN() < Period) return false;
+  Double_t prs[Period];
+  Double_t prf[Period];
+  Period = Period - 1;
+  for (Int_t i = 0; i <= Period; i++) {
+    Double_t y1,y2,t;
+    Slow->GetPoint(Slow->GetN() - 1 - i,t,y1);
+    Fast->GetPoint(Fast->GetN() -1 - i,t,y2);
+    Int_t n = Period - i;
+    prs[n] = y1;
+    prf[n] = y2;
+  }
+  
+  for (Int_t i = 0; i < Period; i++) {
+    Int_t n = Period - i;
+    Double_t now = prf[n]-prs[n];
+    Double_t prev = prf[n-1]-prs[n-1];
+        
+    Float_t diff = 100.*(prf[Period] - prs[Period])/prs[Period];
+    
+    if (Delta > 0 && now  > 0 &&  prev < 0 && diff > Delta) {
+      printf("F_SMA Crossover for %s.\nDelta: %.2f%%\nFound around Index:%d\n", Stock->GetSymbol().Data(), diff,i+1);
+      return  true;
+    } else if (Delta < 0 && now < 0 && prev > 0 && diff < Delta) {
+      printf("S_SMA Crossover for %s. Delta: %.2f%%\nFound around Index:%d\n", Stock->GetSymbol().Data(), diff,i+1);
+      return true;
+    }
+  }
+  
+  return false;
+
+}
+
+/////////////////////////////////////////////////////////////////////
 Bool_t Inflection(TStock *Stock, Int_t SMAPeriod = 25, Int_t Period = 4){
 
   TGraph *g = Stock->GetSMA(SMAPeriod);
@@ -116,8 +158,7 @@ TCanvas *HiLoAnalysis(TStock *Stock){
 /// Simple Moving Average Crossover finder, fPeriod terms behind the actual term
 /// are scanned for a crossover with a minimum relative difference of fDelta
 /// The difference is computed between the last data point available and the crossover
-TCanvas *SMACrossoverScreener(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10,
-			      Int_t fPeriod = 5, Float_t fDelta = 0.00, Int_t fBB = 25){
+TCanvas *GetCanvas(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB = 25){
 
   TCanvas *c1;
   TPad *pad1,*pad2,*pad3;
@@ -197,40 +238,8 @@ TCanvas *SMACrossoverScreener(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10,
   fGDerivative->SetTitle(Form("First Relative Derivative SMA(%d)",fBB));
   fGDerivative->Draw();
   fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
-   
-  Float_t smaprime; // Require Positive derivative of SMA(fBB)
-  smaprime = fGDerivative->GetBinContent(fGDerivative->GetNbinsX());
-  
-   // Look for SMA Crossovers
-   Double_t prs[fPeriod];
-   Double_t prf[fPeriod];
-   for (Int_t i = 0; i < fPeriod; i++) {
-     Double_t y1,y2,t;
-     fGSlowSMA->GetPoint(fGSlowSMA->GetN()-1 - i,t,y1);
-     fGFastSMA->GetPoint(fGFastSMA->GetN()-1 - i,t,y2);
-     prs[fPeriod-i-1] = y1;
-     prf[fPeriod-i-1] = y2;
-   }
-   
-   for (Int_t i = 1; i < fPeriod-1; i++) {
-     
-     Double_t prev = prf[i-1]-prs[i-1];
-     Double_t aft = prf[i+1]-prs[i+1];
-     
-     if ( aft  > 0 &&  prev < 0 && smaprime > 0.0) {
-       Float_t diff = (prf[fPeriod-1] - prs[i])/prs[i];
-       if ( diff > fDelta ){
-   	 printf("F_SMA Crossover for %s. Delta: %.2f%%\n", Stock->GetSymbol().Data(), diff*100.);
-   	 return c1;
-       }
-       break;
-     } else if (aft < 0 && prev > 0)  {
-       printf("S_SMA Crossover for %s\n", Stock->GetSymbol().Data());
-       break;
-     }
-   }
 
-   return 0;
+  return c1;
 
 }
 
@@ -255,15 +264,19 @@ Int_t Analyzer(TString filename = "Symbols/NASDAQ.txt") {
     
     TTree *data = s1->GetData();
     if (data) {
-      
-      TCanvas *cana = SMACrossoverScreener(s1,6,10,6,0.01);
+      TCanvas *cana = GetCanvas(s1);
       //TCanvas *cana = HiLoAnalysis(s1);
-      if (cana) {	
-	if(fOut->GetListOfKeys()->Contains(Symbol.Data())){
-	  fOut->Delete(s1->GetSymbol()+";1");
+      if (cana) {
+	//if(PositiveDerivative(s1,25,8,1.0)){
+	//if(Crossover(s1,6,10,6,-1.0)){
+	if(Inflection(s1,25,16) && PositiveDerivative(s1,25,4,1.0)){
+	  if(fOut->GetListOfKeys()->Contains(Symbol.Data())){
+	    fOut->Delete(s1->GetSymbol()+";1");
+	  }
+	  //cana->Write(Form("HiLo_%s",s1->GetSymbol().Data()));
+	  cana->Print(Form("Output/%s.png",s1->GetSymbol().Data()));
+	  cana->Write(s1->GetSymbol().Data());
 	}
-	//cana->Write(Form("HiLo_%s",s1->GetSymbol().Data()));
-	cana->Write(Form("SMACrossover_%s",s1->GetSymbol().Data()));
       }
       delete cana;
     }
