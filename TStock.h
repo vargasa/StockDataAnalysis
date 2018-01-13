@@ -45,8 +45,8 @@ class TStock {
   Int_t GetIndex(Int_t Event, Int_t Interval) const;
 
  public:
-  TStock();
-  TStock(TString Symbol,TString Freq, TString StartData, TString EndDate);
+  TStock(TString Symbol = "", TString Freq = "1wk",
+	 TString StartDate = "2009-01-01 00:00:00", TString EndDate = "now");
   ~TStock();
   TTree *GetData();
   TGraph *GetAroonDown(Int_t Interval = 25);

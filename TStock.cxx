@@ -3,11 +3,6 @@
 ClassImp(TStock);
 
 ////////////////////////////////////////////////////////////////////////////////
-TStock::TStock(){
-  
-}
-
-////////////////////////////////////////////////////////////////////////////////
 TStock::~TStock(){
 
   if(fTree) delete fTree;
@@ -16,7 +11,7 @@ TStock::~TStock(){
 
 ////////////////////////////////////////////////////////////////////////////////
 
-TStock::TStock(TString Symbol,TString Freq, TString StartDate = "2009-01-01 00:00:00", TString EndDate = "now")
+TStock::TStock(TString Symbol, TString Freq, TString StartDate, TString EndDate)
   :   fTS(fReader,"fTimeStamp"),
       fO(fReader,"fOpen"),
       fL(fReader,"fLow"),
