@@ -1,8 +1,25 @@
 #include "TStock.h"
 #include <fstream>
+/////////////////////////////////////////////////////////////////////
+/// Positive derivative required for Period, last derivative
+/// data point must be greater than Threshold
+Bool_t PositiveDerivative(TStock *Stock, Int_t SMAPeriod, Int_t Period, Float_t Threshold){
 
-////////////////////////////////////////////////////////////////////////////////
-/// Hi-Lo Analysis
+  TGraph *g = Stock->GetSMA(SMAPeriod);
+  TH1F *h = Stock->GetDerivative(g);
+  Int_t n = h->GetNbinsX();
+  if (n < Period) return false;
+  if (h->GetBinContent(n) < Threshold) return false;
+  n = h->GetNbinsX() - Period;
+
+  for (Int_t i = 0; i < Period; i++){
+    Float_t p = h->GetBinContent(n+i);
+    if (p < 0.0) return false;
+  }
+
+  return true;
+
+}
 
 /////////////////////////////////////////////////////////////////////
 Bool_t Inflection(TStock *Stock, Int_t SMAPeriod = 25, Int_t Period = 4){
