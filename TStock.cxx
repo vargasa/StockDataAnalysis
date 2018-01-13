@@ -515,9 +515,13 @@ TMultiGraph *TStock::GetCandleStick(){
   GCandle->Add(GOCG,"E2");
   GCandle->Add(GOCR,"E2");
   GCandle->SetTitle(Form("%s CandleStick;Date;Price",fSymbol.Data()));
-  // GCandle->GetXaxis()->SetTimeDisplay(1);
-  // GCandle->GetXaxis()->SetTimeFormat("%b/%d/%y");
-  // GCandle->GetXaxis()->SetTimeOffset(0,"gmt");
+  // Working from ROOT 6.13
+  TH1F *h = GCandle->GetHistogram();
+  if (h) {
+    h->GetXaxis()->SetTimeDisplay(1);
+    h->GetXaxis()->SetTimeFormat("%b/%d/%y");
+    h->GetXaxis()->SetTimeOffset(0,"gmt");
+  }
   
   return GCandle;
 
