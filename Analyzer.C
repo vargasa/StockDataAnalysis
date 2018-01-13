@@ -162,7 +162,7 @@ TCanvas *SMACrossoverScreener(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10,
   
   pad3->cd();
   fGDerivative = Stock->GetDerivative(Stock->GetSMA(fBB,"close"));
-  fGDerivative->SetTitle("First Relative Derivative SMA(fBB)");
+  fGDerivative->SetTitle(Form("First Relative Derivative SMA(%d)",fBB));
   fGDerivative->Draw();
   fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
    
