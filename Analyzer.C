@@ -4,6 +4,21 @@
 ////////////////////////////////////////////////////////////////////////////////
 /// Hi-Lo Analysis
 
+/////////////////////////////////////////////////////////////////////
+Bool_t Inflection(TStock *Stock, Int_t SMAPeriod = 25, Int_t Period = 4){
+
+  TGraph *g = Stock->GetSMA(SMAPeriod);
+  TH1F *h = Stock->GetDerivative(g);
+  Int_t n = h->GetNbinsX();
+  if (n < Period) return false;
+  for(Int_t i = 0; i < Period; i++){
+    if ( h->GetBinContent(n-i) > 0.0 && h->GetBinContent(n-i-1) < 0.0) return true;
+  }
+  return false;
+
+}
+
+/////////////////////////////////////////////////////////////////////
 TCanvas *HiLoAnalysis(TStock *Stock){
   
   Float_t xmin = -0.5;
