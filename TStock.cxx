@@ -81,6 +81,14 @@ Int_t TStock::GetIndex(Int_t Event, Int_t Interval) const{
 
 TTree *TStock::GetData(){
 
+  if(fDBFile) {
+    TTree *t1 = (TTree*)fDBFile->Get(fSymbol+"_"+fFreq+";1");
+    if (t1) {
+      fTree = t1;
+      fReader.SetTree(fTree);
+    }
+  }
+  
   if(fTree) return fTree;
 
   TTree *tree = new TTree(fSymbol,"From CSV File");

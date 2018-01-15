@@ -32,6 +32,7 @@ class TStock {
   TTimeStamp fStartDate;
   TTimeStamp fEndDate;
   TTree *fTree;
+  TFile *fDBFile;
 
   TTreeReader fReader;
   TTreeReaderValue<TTimeStamp> fTS;
@@ -62,6 +63,7 @@ class TStock {
   TString GetFreq() const {return fFreq;}
   TTimeStamp GetStartDate() const {return fStartDate;}
   TTimeStamp GetEndDate() const {return fEndDate;}
+  void SetDBFile(TFile *f = 0) { fDBFile = f;}
   
   ClassDef(TStock,0);
   
