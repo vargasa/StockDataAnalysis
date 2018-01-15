@@ -55,7 +55,7 @@ class TStock {
   TGraph *GetSMA(Int_t Interval = 6, Option_t *Option="close");
   TGraph *GetVWMA(Int_t Interval = 25, Option_t *Option="close");
   TGraphErrors *GetBollingerBands(Int_t Interval = 20, Float_t fW = 2.0);
-  TGraph *GetDerivative(TGraph *fg);
+  TGraph *GetDerivative(TGraph *fg, Option_t *Option = "");
   THStack *GetVolume();
   TMultiGraph *GetCandleStick();
   TString GetSymbol() const {return fSymbol;}

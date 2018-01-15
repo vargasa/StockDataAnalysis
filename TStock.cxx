@@ -397,17 +397,33 @@ TGraphErrors *TStock::GetBollingerBands(Int_t Interval, Float_t fW){
 /// Relative numerical derivative working only for equaly distant x-data
 /// Expressed in %terms with the previous period value as reference
 
-TGraph *TStock::GetDerivative(TGraph *fg){
+TGraph *TStock::GetDerivative(TGraph *gr,Option_t *Option){
+
+  TString opt = Option;
+  opt.ToLower();
 
   TGraph *GDerivative = new TGraph();
 
-  for (Int_t i = 1; i < fg->GetN(); i++){
-    Double_t x1,y1,y2;
-    fg->GetPoint(i-1,x1,y1);
-    fg->GetPoint(i,x1,y2);
-    Double_t dy = 100.*(y2 - y1)/y1;
-    GDerivative->SetPoint(GDerivative->GetN(),x1,dy);
+  Double_t x1,y1,y2;
+  Double_t dy;
+  Int_t npoints = gr->GetN();
+
+  if (opt.Contains("relative")) { 
+    for (Int_t i = 1; i < npoints; i++){
+      gr->GetPoint(i-1,x1,y1);
+      gr->GetPoint(i,x1,y2);
+      dy = 100.*(y2 - y1)/y1;
+      GDerivative->SetPoint(GDerivative->GetN(),x1,dy);
+    }
+  } else {
+    for (Int_t i = 1; i < npoints; i++){
+      gr->GetPoint(i-1,x1,y1);
+      gr->GetPoint(i,x1,y2);
+      dy = y2 - y1;
+      GDerivative->SetPoint(GDerivative->GetN(),x1,dy);
+    }
   }
+  
   GDerivative->SetFillColor(38);
   GDerivative->GetXaxis()->SetTimeDisplay(1);
   GDerivative->GetXaxis()->SetTimeFormat("%b/%d/%y");

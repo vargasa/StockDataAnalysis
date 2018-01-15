@@ -17,7 +17,7 @@ void NormalizeGraph(TGraph *gr){
 Bool_t PositiveDerivative(TStock *Stock, Int_t SMAPeriod, Int_t Period, Float_t Threshold){
 
   TGraph *g = Stock->GetSMA(SMAPeriod);
-  TGraph *p = Stock->GetDerivative(g);
+  TGraph *p = Stock->GetDerivative(g,"Relative");
   Int_t n = p->GetN();
   if (n < Period) return false;
   n--;
@@ -77,7 +77,7 @@ Bool_t Crossover(TStock *Stock, Int_t IFast = 6, Int_t ISlow = 10,
 Bool_t Inflection(TStock *Stock, Int_t SMAPeriod = 25, Int_t Period = 4){
 
   TGraph *g = Stock->GetSMA(SMAPeriod);
-  TGraph *p = Stock->GetDerivative(g);
+  TGraph *p = Stock->GetDerivative(g,"Relative");
   Int_t n = p->GetN();
   if (n < Period) return false;
   n--;
@@ -245,7 +245,8 @@ TCanvas *GetCanvas(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB =
   fHSVol->SetMaximum(hh->GetMaximum());
   
   pad3->cd();
-  fGDerivative = Stock->GetDerivative(Stock->GetSMA(fBB,"close"));
+  TGraph *smaux = Stock->GetSMA(fBB,"close");
+  fGDerivative = Stock->GetDerivative(smaux,"Relative");
   fGDerivative->SetTitle(Form("First Relative Derivative SMA(%d)",fBB));
   fGDerivative->Draw("AB");
   fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
