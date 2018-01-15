@@ -1,5 +1,16 @@
 #include "TStock.h"
 #include <fstream>
+
+/////////////////////////////////////////////////////////////////////
+/// Allows to normalize Graph to get better comparisons between
+/// different priced Stocks
+void NormalizeGraph(TGraph *gr){
+
+  Float_t scale = 1/TMath::MaxElement(gr->GetN(),gr->GetY());
+  for (int i=0 ; i< gr->GetN();i++) gr->GetY()[i] *= scale;
+  
+}
+
 /////////////////////////////////////////////////////////////////////
 /// Positive derivative required for Period, last derivative
 /// data point must be greater than Threshold
