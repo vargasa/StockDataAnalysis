@@ -17,15 +17,14 @@ void NormalizeGraph(TGraph *gr){
 Bool_t PositiveDerivative(TStock *Stock, Int_t SMAPeriod, Int_t Period, Float_t Threshold){
 
   TGraph *g = Stock->GetSMA(SMAPeriod);
-  TH1F *h = Stock->GetDerivative(g);
-  Int_t n = h->GetNbinsX();
+  TGraph *p = Stock->GetDerivative(g);
+  Int_t n = p->GetN();
   if (n < Period) return false;
-  if (h->GetBinContent(n) < Threshold) return false;
-  n = h->GetNbinsX() - Period;
+  n--;
+  if (p->GetY()[n] < Threshold) return false;
 
   for (Int_t i = 0; i < Period; i++){
-    Float_t p = h->GetBinContent(n+i);
-    if (p < 0.0) return false;
+    if (p->GetY()[n-i] < 0.0) return false;
   }
 
   return true;
@@ -78,11 +77,12 @@ Bool_t Crossover(TStock *Stock, Int_t IFast = 6, Int_t ISlow = 10,
 Bool_t Inflection(TStock *Stock, Int_t SMAPeriod = 25, Int_t Period = 4){
 
   TGraph *g = Stock->GetSMA(SMAPeriod);
-  TH1F *h = Stock->GetDerivative(g);
-  Int_t n = h->GetNbinsX();
+  TGraph *p = Stock->GetDerivative(g);
+  Int_t n = p->GetN();
   if (n < Period) return false;
+  n--;
   for(Int_t i = 0; i < Period; i++){
-    if ( h->GetBinContent(n-i) > 0.0 && h->GetBinContent(n-i-1) < 0.0) return true;
+    if ( p->GetY()[n-i] > 0.0 && p->GetY()[n-i-1] < 0.0) return true;
   }
   return false;
 
@@ -195,7 +195,7 @@ TCanvas *GetCanvas(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB =
   TGraph *fGVWMA;
   TLegend *fLegend;
   THStack *fHSVol;
-  TH1F *fGDerivative;
+  TGraph *fGDerivative;
   
   pad1->cd();
   pad1->SetGrid();
@@ -247,7 +247,7 @@ TCanvas *GetCanvas(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB =
   pad3->cd();
   fGDerivative = Stock->GetDerivative(Stock->GetSMA(fBB,"close"));
   fGDerivative->SetTitle(Form("First Relative Derivative SMA(%d)",fBB));
-  fGDerivative->Draw();
+  fGDerivative->Draw("AB");
   fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
 
   return c1;

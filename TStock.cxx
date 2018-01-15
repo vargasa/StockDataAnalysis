@@ -397,23 +397,18 @@ TGraphErrors *TStock::GetBollingerBands(Int_t Interval, Float_t fW){
 /// Relative numerical derivative working only for equaly distant x-data
 /// Expressed in %terms with the previous period value as reference
 
-TH1F *TStock::GetDerivative(TGraph *fg){
-  
-  Int_t nbins = TMath::Nint((Double_t)(fEndDate.GetSec() - fStartDate.GetSec()) / GetTimeWidth(fFreq));
+TGraph *TStock::GetDerivative(TGraph *fg){
 
-  TH1F *GDerivative = new TH1F(Form("GDerivative%s",fSymbol.Data()),"Derivative",
-			       nbins,fStartDate.GetSec(),fEndDate.GetSec());
+  TGraph *GDerivative = new TGraph();
 
   for (Int_t i = 1; i < fg->GetN(); i++){
-    Double_t x1,y1,x2,y2;
+    Double_t x1,y1,y2;
     fg->GetPoint(i-1,x1,y1);
-    fg->GetPoint(i,x2,y2);
+    fg->GetPoint(i,x1,y2);
     Double_t dy = 100.*(y2 - y1)/y1;
-    GDerivative->Fill(x2,dy);
+    GDerivative->SetPoint(GDerivative->GetN(),x1,dy);
   }
-  GDerivative->SetStats(false);
   GDerivative->SetFillColor(38);
-  GDerivative->SetOption("HIST");
   GDerivative->GetXaxis()->SetTimeDisplay(1);
   GDerivative->GetXaxis()->SetTimeFormat("%b/%d/%y");
   GDerivative->GetXaxis()->SetTimeOffset(0,"gmt");
