@@ -14,7 +14,7 @@ folder=$5
 first_date=$(date -d "$3" '+%s')
 last_date=$(date -d "$4" '+%s')
 
-alias wget='wget -q --no-check-certificate'
+alias wget='wget -q -o /dev/null --no-check-certificate'
 
 wget --tries=3 --save-cookies=/tmp/ycookie.txt https://finance.yahoo.com/quote/$symbol/?p=$symbol -O /tmp/ycrumb.store
 
