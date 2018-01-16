@@ -43,6 +43,7 @@ TStock::TStock(TString Symbol, TString Freq, TString StartDate, TString EndDate)
   fStartDate = sdate;
   fEndDate = edate;
   fTree = 0;
+  fDBFile = 0;
   
 }
 
