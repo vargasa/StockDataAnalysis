@@ -308,6 +308,43 @@ TGraph *TStock::GetSMA(Int_t Interval, Option_t *Option){
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+/// Volume Moving Average
+
+TGraph *TStock::GetVMA(Int_t Interval){
+
+  if (!fTree) {
+    Error("TStock::GetVMA()","No data available. Did you forget to call GetData()?");
+    return 0;
+  }
+
+  Int_t Volume[Interval];
+  TGraph *GVMA = new TGraph();
+  Int_t Event;
+
+  fReader.Restart();
+
+  while(fReader.Next()){
+
+    Volume[GetIndex(Event,Interval)] = *fVol;
+
+    if(Event>=Interval){
+      Double_t VMA = TMath::Mean(&Volume[0],&Volume[Interval]);
+      GVMA->SetPoint(GVMA->GetN(),fTS->GetSec(),VMA);
+    }
+    Event++;
+  }
+  GVMA->SetLineColor(kYellow);
+  GVMA->SetLineWidth(2);
+  GVMA->SetTitle(Form("%s VMA(%d);Date;SMA",fSymbol.Data(),Interval));
+  GVMA->GetXaxis()->SetTimeDisplay(1);
+  GVMA->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  GVMA->GetXaxis()->SetTimeOffset(0,"gmt");
+
+  return GVMA;
+  
+}
+
+////////////////////////////////////////////////////////////////////////////////
 /// Volume Weighted Moving Average
 
 TGraph *TStock::GetVWMA(Int_t Interval, Option_t *Option){

@@ -54,6 +54,7 @@ class TStock {
   TGraph *GetAroonUp(Int_t Interval = 25);
   TGraph *GetAroon(Int_t Interval = 25);
   TGraph *GetSMA(Int_t Interval = 6, Option_t *Option="close");
+  TGraph *GetVMA(Int_t Interval = 10);
   TGraph *GetVWMA(Int_t Interval = 25, Option_t *Option="close");
   TGraphErrors *GetBollingerBands(Int_t Interval = 20, Float_t fW = 2.0);
   TGraph *GetDerivative(TGraph *fg, Option_t *Option = "");
