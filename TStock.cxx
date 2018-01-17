@@ -319,7 +319,7 @@ TGraph *TStock::GetVMA(Int_t Interval){
 
   Int_t Volume[Interval];
   TGraph *GVMA = new TGraph();
-  Int_t Event;
+  Int_t Event = 0;
 
   fReader.Restart();
 
