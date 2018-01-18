@@ -85,7 +85,9 @@ TTree *TStock::GetData(){
   if(fDBFile) {
     TTree *t1 = (TTree*)fDBFile->Get(fSymbol+"_"+fFreq+";1");
     if (t1) {
-      fTree = t1;
+      TCut sdt = Form("fTimeStamp.GetSec() >= %ld", fStartDate.GetSec());
+      TCut edt = Form("fTimeStamp.GetSec() <= %ld", fEndDate.GetSec());
+      fTree = t1->CopyTree(sdt&&edt);
       fReader.SetTree(fTree);
     }
   }
