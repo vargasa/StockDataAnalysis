@@ -12,6 +12,39 @@ void NormalizeGraph(TGraph *gr){
 }
 
 /////////////////////////////////////////////////////////////////////
+/// Look for Aroon crossing zero with certain threshold, positive Threshold
+/// Aroon will be crossing zero going up and negative Threshold will be
+/// Aroon crossing zero going down.
+Bool_t AroonZero(TStock *Stock, Int_t AroonPeriod, Int_t Period, Float_t Threshold){
+
+  if (Stock->GetData()->GetEntries() < AroonPeriod){
+    Error("AroonZero","Not enough data to compute Aroon");
+    return false;
+  }
+
+  TGraph *ga = Stock->GetAroon(AroonPeriod);
+  Int_t n = ga->GetN();
+  n--;
+
+  Double_t *Aroon = ga->GetY();
+  
+  if (Threshold > 0. && Aroon[n] < Threshold) return false;
+  if (Threshold < 0. && Aroon[n] > Threshold) return false;
+
+  if (Threshold > 0){
+    for(Int_t i = 0; i < Period; i++){
+      if ( Aroon[n-i] > 0.0 && Aroon[n-i-1] < 0.0) return true;
+    }
+  } else {
+    for(Int_t i = 0; i < Period; i++){
+      if ( Aroon[n-i] < 0.0 && Aroon[n-i-1] > 0.0) return true;
+    }
+
+  }
+  
+  return false;
+}
+/////////////////////////////////////////////////////////////////////
 /// Positive derivative required for Period, last derivative
 /// data point must be greater than Threshold
 Bool_t PositiveDerivative(TStock *Stock, Int_t SMAPeriod, Int_t Period, Float_t Threshold){
