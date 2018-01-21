@@ -1,35 +1,69 @@
-# Given a USERNAME and PASSWORD for Robinhood account
-# it logs tick by tick market and equity value to Daily.csv
-# file. It must run in the background.
+# Neet to set USERNAME and PASSWORD for Robinhood account
 
+import threading
+import time
 import csv, time
 from datetime import datetime
 from Robinhood import Robinhood
 
+class BackThread:
+    
+    def __init__(self, trader):
+        self.trader = trader
+        thread = threading.Thread(target=self.run, args=())
+        thread.daemon = True
+        thread.start()
+        
+    def SecOwned(self) :
+        
+        posinfo = []
+        
+        dsecowned = trader.securities_owned()['results']
+        
+        for position in dsecowned:
+            
+            idstring = position['instrument'].split('/')[4]
+            shares = float(position['quantity'])
+            if shares > 0 :
+                stock = trader.instrument(idstring)
+                symbol = stock['symbol']
+                name = stock['name']
+                qdata = trader.quote_data(symbol)
+                pricenow = float(qdata['last_trade_price'])
+                prevclose = float(qdata['previous_close'])
+                avprice = float(position['average_buy_price'])
+                daychange = 100*(pricenow - prevclose)/prevclose
+                posinfo.append([symbol, avprice, pricenow, daychange, position['instrument']])
+                if daychange > 5.0  or daychange < -2.0:
+                    print "{0} Requires attention day change: {1}%".format(symbol,daychange)
+        return posinfo
+            
+    def run(self):
+        dfile = open('Daily.csv', 'a+');
+        
+        with dfile as csvfile:
+            filewriter = csv.writer(csvfile, delimiter=',',
+                                    quotechar='|',
+                                    quoting=csv.QUOTE_MINIMAL)
+            while True:
+                
+                date = datetime.now()
+                if date.weekday() < 5 and date > openMarket and date < closeMarket :
+                    equity = trader.equity()
+                    marketValue = trader.market_value()                
+                    filewriter.writerow([date.strftime("%Y-%m-%d %H:%M:%S"),equity,marketValue])
+                    dfile.flush()
+                    #print (date.strftime("%Y-%m-%d %H:%M:%S") , marketValue , equity)
+                    self.SecOwned()
+                    time.sleep(10)
+                else :
+                    time.sleep(60)
+                    openMarket = datetime.now().replace(hour=9, minute=30, second=0, microsecond=0)
+                    closeMarket = datetime.now().replace(hour=16, minute=0, second=0, microsecond=0)
+
+
+
 trader = Robinhood()
 logged_in = trader.login(username="USERNAME", password="PASSWORD")
 
-openMarket = datetime.now().replace(hour=9, minute=30, second=0, microsecond=0)
-closeMarket = datetime.now().replace(hour=16, minute=0, second=0, microsecond=0)
-
-dailyFile = open('Daily.csv', 'a+');
-
-with dailyFile as csvfile:
-    filewriter = csv.writer(csvfile, delimiter=',',
-                            quotechar='|',
-                            quoting=csv.QUOTE_MINIMAL)
-    if logged_in:
-        while True:
-            date = datetime.now()
-            
-            if date.weekday() < 5 and date > openMarket and date < closeMarket :
-                equity = trader.equity()
-                marketValue = trader.market_value()
-                filewriter.writerow([date.strftime("%Y-%m-%d %H:%M:%S"),equity,marketValue])
-                dailyFile.flush()
-                print ( date.strftime("%Y-%m-%d %H:%M:%S") , marketValue , equity )
-                time.sleep(10)
-            else :
-                time.sleep(60)
-                openMarket = datetime.now().replace(hour=9, minute=30, second=0, microsecond=0)
-                closeMarket = datetime.now().replace(hour=16, minute=0, second=0, microsecond=0)
+p1 = BackThread(trader=trader)
