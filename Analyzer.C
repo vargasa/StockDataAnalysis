@@ -308,7 +308,7 @@ Int_t Analyzer(TString filename = "Symbols/NASDAQ.txt") {
     TStock *s1 = new TStock(Symbol,Freq,StartDate,EndDate);
     
     TTree *data = s1->GetData();
-    if (data) {
+    if (data || data->GetEntries() < 52) { //At least one year old
       TCanvas *cana = GetCanvas(s1);
       //TCanvas *cana = HiLoAnalysis(s1);
       if (cana) {
