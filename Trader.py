@@ -39,6 +39,10 @@ class BackThread:
         return posinfo
             
     def run(self):
+        
+        openMarket = datetime.now().replace(hour=9, minute=30, second=0, microsecond=0)
+        closeMarket = datetime.now().replace(hour=16, minute=0, second=0, microsecond=0)
+        
         dfile = open('Daily.csv', 'a+');
         
         with dfile as csvfile:
