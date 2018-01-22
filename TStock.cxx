@@ -251,6 +251,7 @@ TGraph *TStock::GetAroon(Int_t Interval){
   TGraph *GAroon = new TGraph();
   TGraph *GAU = this->GetAroonUp(Interval);
   TGraph *GAD = this->GetAroonDown(Interval);
+  if (!GAD || !GAU) return 0;
   for (Int_t i = 0; i < GAU->GetN(); i++){
     Double_t x1, y1, x2, y2;
     GAU->GetPoint(i,x1,y1);
