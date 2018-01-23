@@ -23,6 +23,8 @@ Bool_t AroonZero(TStock *Stock, Int_t AroonPeriod, Int_t Period, Float_t Thresho
   }
 
   TGraph *ga = Stock->GetAroon(AroonPeriod);
+  if (!ga) return 0;
+  
   Int_t n = ga->GetN();
   n--;
 
@@ -284,6 +286,11 @@ TCanvas *GetCanvas(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB =
   fGDerivative->Draw("AB");
   fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
 
+  TGraph *Garoon = Stock->GetAroon(14);
+  Garoon->SetFillColor(kBlue);
+  Garoon->Draw("AB");
+  Garoon->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+
   return c1;
 
 }
@@ -296,7 +303,8 @@ Int_t Analyzer(TString filename = "Symbols/NASDAQ.txt") {
 
   std::string line;
 
-  TFile *fOut = new TFile("Output/SMACrossover.root","UPDATE");
+  //TFile *fOut = new TFile("Output/SMACrossover.root","UPDATE");
+  TFile *fDB = new TFile("Output/SymbolsDB.root","READ");
   
   while (std::getline(infile, line)){
     TString Symbol = TString(line);
@@ -306,28 +314,32 @@ Int_t Analyzer(TString filename = "Symbols/NASDAQ.txt") {
 
     printf("Analyzing %s\n",Symbol.Data());
     TStock *s1 = new TStock(Symbol,Freq,StartDate,EndDate);
+    s1->SetDBFile(fDB);
     
     TTree *data = s1->GetData();
-    if (data || data->GetEntries() < 52) { //At least one year old
-      TCanvas *cana = GetCanvas(s1);
-      //TCanvas *cana = HiLoAnalysis(s1);
-      if (cana) {
-	//if(PositiveDerivative(s1,25,8,1.0)){
-	//if(Crossover(s1,6,10,6,-1.0)){
-	if(Inflection(s1,25,16) && PositiveDerivative(s1,25,4,1.0)){
-	  if(fOut->GetListOfKeys()->Contains(Symbol.Data())){
-	    fOut->Delete(s1->GetSymbol()+";1");
-	  }
-	  //cana->Write(Form("HiLo_%s",s1->GetSymbol().Data()));
-	  cana->Print(Form("Output/%s.png",s1->GetSymbol().Data()));
-	  cana->Write(s1->GetSymbol().Data());
-	}
+    if (!data) continue;
+    if (data->GetEntries() < 52) continue; //At least one year old
+    TCanvas *cana = GetCanvas(s1);
+    //TCanvas *cana = HiLoAnalysis(s1);
+    if (cana) {
+      //if(PositiveDerivative(s1,25,8,1.0)){
+      //if(Crossover(s1,6,10,6,-1.0)){
+      //if(Inflection(s1,25,16) && PositiveDerivative(s1,25,4,1.0)){
+      if(AroonZero(s1,14,16,90)){
+	// if(fOut->GetListOfKeys()->Contains(Symbol.Data())){
+	//   fOut->Delete(s1->GetSymbol()+";1");
+	// }
+	//cana->Write(Form("HiLo_%s",s1->GetSymbol().Data()));
+	cana->Print(Form("Output/%s.png",s1->GetSymbol().Data()));
       }
-      delete cana;
     }
+    delete cana;
   }
 
-  fOut->Close();
+
+  fDB->Close();
+
+  // fOut->Close();
   
   return 0;
 
