@@ -9,20 +9,24 @@ Int_t GetDBFile(TString listfile = "Symbols/NASDAQ.txt", TString Freq = "1wk", T
 
   std::string line;
 
-  TFile *fOut = new TFile("Output/"+filename+".root","RECREATE");
+  TFile *fOut = new TFile("Output/"+filename+".root","UPDATE");
 
   while (std::getline(infile, line)){
 
     TString Symbol = TString(line);
     TStock *Stock = new TStock(Symbol,Freq,StartDate);
-    cout << Symbol+"\t";
-    TTree *tree = Stock->GetData();
-    if(tree){
-      tree->SetName(Form("%s_%s",Symbol.Data(),Freq.Data()));
-      tree->Write();
-      cout << "[Ok]\n";
-    } else {
-      cout << "[Error]\n";
+    
+    TTree *t1 = (TTree*)fOut->Get(Symbol+"_"+Freq+";1");
+    if (!t1) {
+      cout << Symbol+"\t";
+      TTree *tree = Stock->GetData();
+      if(tree){
+	tree->SetName(Form("%s_%s",Symbol.Data(),Freq.Data()));
+	tree->Write();
+	cout << "[Ok]\n";
+      } else {
+	cout << "[Error]\n";
+      }
     }
     
   }
