@@ -8,6 +8,9 @@ void NormalizeGraph(TGraph *gr){
 
   Float_t scale = 1/TMath::MaxElement(gr->GetN(),gr->GetY());
   for (int i=0 ; i< gr->GetN();i++) gr->GetY()[i] *= scale;
+  gr->GetYaxis()->SetRangeUser(0,1.0);
+  //Double_t disp = gr->GetY()[0];
+  //for (int i=0; i< gr->GetN(); i++) gr->GetY()[i] -= disp;
   
 }
 
@@ -109,6 +112,8 @@ Bool_t Crossover(TStock *Stock, Int_t IFast = 6, Int_t ISlow = 10,
 }
 
 /////////////////////////////////////////////////////////////////////
+/// Find if there is an inflection in the SMA(*SMAPeriod*) in the last
+/// number of *Period* of time
 Bool_t Inflection(TStock *Stock, Int_t SMAPeriod = 25, Int_t Period = 4){
 
   TGraph *g = Stock->GetSMA(SMAPeriod);
@@ -204,16 +209,19 @@ TCanvas *HiLoAnalysis(TStock *Stock){
 /// Simple Moving Average Crossover finder, fPeriod terms behind the actual term
 /// are scanned for a crossover with a minimum relative difference of fDelta
 /// The difference is computed between the last data point available and the crossover
-TCanvas *GetCanvas(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB = 25){
+TCanvas *GetCanvas(TStock *Stock, TStock *Benchmark, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB = 25){
 
   TCanvas *c1;
-  TPad *pad1,*pad2,*pad3;
+  TPad *pad1,*pad2,*pad3, *pad4, *pad5;
 
   c1 = new TCanvas(Stock->GetSymbol().Data(),"c1",2048,1152);
   c1->SetBatch(kTRUE);
-  pad1 = new TPad("pad1", "p1",0.0,0.50,1.0,1.0);
-  pad2 = new TPad("pad2", "p2",0.0,0.25,1.0,0.50);
-  pad3 = new TPad("pad3", "p3",0.0,0.0,1.0,0.25);
+  pad1 = new TPad("pad1", "p1",0.0,0.6,1.0,1.0);
+  pad2 = new TPad("pad2", "p2",0.0,0.3,1.0,0.6);
+  pad3 = new TPad("pad3", "p3",0.0,0.0,0.3,0.3);
+  pad4 = new TPad("pad4", "p4",0.3,0.0,0.6,0.3);
+  pad5 = new TPad("pad5", "p5",0.6,0.0,1.0,0.3);
+  
   pad2->SetFillStyle(4000); //will be transparent
   pad2->SetFrameFillStyle(0);
   pad1->Draw();
@@ -222,6 +230,10 @@ TCanvas *GetCanvas(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB =
   pad3->SetFillStyle(4000);
   pad3->Draw();
   pad3->SetGrid();
+  pad4->Draw();
+  pad4->SetGrid();
+  pad5->Draw();
+  pad5->SetGrid();
 
   TMultiGraph *fGCandle;
   TGraphErrors *fGBB;
@@ -286,10 +298,22 @@ TCanvas *GetCanvas(TStock *Stock, Int_t fFast = 6, Int_t fSlow = 10, Int_t fBB =
   fGDerivative->Draw("AB");
   fGDerivative->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
 
+  pad4->cd();
   TGraph *Garoon = Stock->GetAroon(14);
   Garoon->SetFillColor(kBlue);
   Garoon->Draw("AB");
   Garoon->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+
+  pad5->cd();
+  TGraph *smabench = Benchmark->GetSMA(fBB);
+  NormalizeGraph(smabench);
+  smabench->SetLineColor(kRed);
+  //smabench->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+  smabench->Draw("AL");
+  //smaux->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+    
+  NormalizeGraph(smaux);
+  smaux->Draw("SAME");
 
   return c1;
 
@@ -314,12 +338,15 @@ Int_t Analyzer(TString filename = "Symbols/NASDAQ.txt") {
 
     printf("Analyzing %s\n",Symbol.Data());
     TStock *s1 = new TStock(Symbol,Freq,StartDate,EndDate);
+    TStock *bmark = new TStock("SPY",Freq,StartDate,EndDate);
+    bmark->SetDBFile(fDB);
+    bmark->GetData();
     s1->SetDBFile(fDB);
     
     TTree *data = s1->GetData();
     if (!data) continue;
     if (data->GetEntries() < 52) continue; //At least one year old
-    TCanvas *cana = GetCanvas(s1);
+    TCanvas *cana = GetCanvas(s1,bmark);
     //TCanvas *cana = HiLoAnalysis(s1);
     if (cana) {
       //if(PositiveDerivative(s1,25,8,1.0)){
