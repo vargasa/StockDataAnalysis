@@ -1,6 +1,27 @@
 #include "TStock.h"
 #include <fstream>
 
+
+/////////////////////////////////////////////////////////////////////
+/// Find the Index in gr for a given time
+Int_t FindTimeIndex(TGraph *gr, Int_t time){
+
+  for(Int_t i=0;i < gr->GetN(); i++){
+    Double_t x, y;
+    gr->GetPoint(i,x,y);
+    // Need to find a better approach
+    if (TMath::Nint(x)-time >= 0) return i;
+  }
+
+  return -1;
+}
+
+/////////////////////////////////////////////////////////////////////
+/// Performs a *dy* translation on the vertical axis of *gr*
+void YTranslation(TGraph *gr, Double_t dy){
+  for (int i=0; i< gr->GetN(); i++) gr->GetY()[i] += dy;
+}
+
 /////////////////////////////////////////////////////////////////////
 /// Allows to normalize Graph to get better comparisons between
 /// different priced Stocks
@@ -9,8 +30,6 @@ void NormalizeGraph(TGraph *gr){
   Float_t scale = 1/TMath::MaxElement(gr->GetN(),gr->GetY());
   for (int i=0 ; i< gr->GetN();i++) gr->GetY()[i] *= scale;
   gr->GetYaxis()->SetRangeUser(0,1.0);
-  //Double_t disp = gr->GetY()[0];
-  //for (int i=0; i< gr->GetN(); i++) gr->GetY()[i] -= disp;
   
 }
 
@@ -305,15 +324,29 @@ TCanvas *GetCanvas(TStock *Stock, TStock *Benchmark, Int_t fFast = 6, Int_t fSlo
   Garoon->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
 
   pad5->cd();
+  TMultiGraph *mgbench = new TMultiGraph();
   TGraph *smabench = Benchmark->GetSMA(fBB);
   NormalizeGraph(smabench);
-  smabench->SetLineColor(kRed);
-  //smabench->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
-  smabench->Draw("AL");
-  //smaux->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
-    
   NormalizeGraph(smaux);
-  smaux->Draw("SAME");
+  smabench->SetLineColor(kRed);
+  Int_t j = FindTimeIndex(smabench,tStart.Convert());
+  Double_t x = 0.;
+  Double_t y = 0.;
+  if (j != -1){
+    smabench->GetPoint(j,x,y);
+    YTranslation(smabench,-y);
+    j = FindTimeIndex(smaux,tStart.Convert());
+    smaux->GetPoint(j,x,y);
+    YTranslation(smaux,-y);
+  }
+  mgbench->Add(smabench,"AL");
+  mgbench->Add(smaux,"AL");
+  mgbench->GetYaxis()->SetRangeUser(-1.0,1.0);
+  mgbench->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
+  mgbench->Draw("A");
+  mgbench->GetXaxis()->SetTimeDisplay(1);
+  mgbench->GetXaxis()->SetTimeFormat("%b/%d/%y");
+  mgbench->GetXaxis()->SetTimeOffset(0,"gmt");
 
   return c1;
 
