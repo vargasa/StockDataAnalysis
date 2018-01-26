@@ -1,4 +1,4 @@
-# Neet to set USERNAME and PASSWORD for Robinhood account
+# Need to set USERNAME and PASSWORD for Robinhood account
 
 import threading
 import time
@@ -33,9 +33,11 @@ class BackThread:
                 prevclose = float(qdata['previous_close'])
                 avprice = float(position['average_buy_price'])
                 daychange = 100*(pricenow - prevclose)/prevclose
-                posinfo.append([symbol, avprice, pricenow, daychange, position['instrument']])
-                if daychange > 5.0  or daychange < -2.0:
-                    print "{0} Requires attention day change: {1}%".format(symbol,daychange)
+                if avprice!= 0 : netprofit = 100*(pricenow - avprice)/avprice
+                posinfo.append([symbol, avprice, pricenow, daychange, idstring])
+                if daychange > 5.0  or daychange < -2.0 or netprofit < -5.0 :
+                    msg = "{}\n\t{} Requires attention\n\tDailyChange: {:.2f}%\n\tNetProfit: {:.2f}%\n"
+                    print msg.format(datetime.now(),symbol,daychange,netprofit)
         return posinfo
             
     def run(self):
