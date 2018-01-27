@@ -1,6 +1,30 @@
 #include "TStock.h"
 #include <fstream>
 
+/////////////////////////////////////////////////////////////////////
+// Find if there was unusual volume (given by a *Threshold* change) in
+// the last *Period* of time. Threshold is expressed as a relative change
+Bool_t UnusualVolume(TStock *Stock, Int_t Period, Int_t VMAPeriod, Int_t Threshold){
+
+  THStack *hsvol = Stock->GetVolume();
+  TGraph *avgvol = Stock->GetVMA(VMAPeriod);
+
+  TH1 *vol = (TH1*)hsvol->GetStack()->Last();
+  Int_t n = vol->GetNbinsX() - 1;
+  Int_t navg = avgvol->GetN() - 1;
+  for (Int_t i = 0; i < Period; i++){
+    if (vol->GetBinContent(n-i) == 0) return false;
+    Double_t x,y;
+    avgvol->GetPoint(navg-i,x,y);
+    Double_t dv = vol->GetBinContent(n-i) - y ;
+    dv = 100*dv/y;
+    if (dv > Threshold){
+      return true;
+    }
+  }
+  return false;
+}
+
 
 /////////////////////////////////////////////////////////////////////
 /// Find the Index in gr for a given time
@@ -38,11 +62,6 @@ void NormalizeGraph(TGraph *gr){
 /// Aroon will be crossing zero going up and negative Threshold will be
 /// Aroon crossing zero going down.
 Bool_t AroonZero(TStock *Stock, Int_t AroonPeriod, Int_t Period, Float_t Threshold){
-
-  if (Stock->GetData()->GetEntries() < AroonPeriod){
-    Error("AroonZero","Not enough data to compute Aroon");
-    return false;
-  }
 
   TGraph *ga = Stock->GetAroon(AroonPeriod);
   if (!ga) return 0;
@@ -309,6 +328,9 @@ TCanvas *GetCanvas(TStock *Stock, TStock *Benchmark, Int_t fFast = 6, Int_t fSlo
   TH1 *hh = ((TH1 *)(fHSVol->GetStack()->Last()));
   hh->GetXaxis()->SetRangeUser(tStart.Convert(),tEnd.Convert());
   fHSVol->SetMaximum(hh->GetMaximum());
+  TGraph *avgvolume = Stock->GetVMA(fBB);
+  avgvolume->SetLineWidth(3);
+  avgvolume->Draw("SAME");
   
   pad3->cd();
   TGraph *smaux = Stock->GetSMA(fBB,"close");
@@ -384,8 +406,10 @@ Int_t Analyzer(TString filename = "Symbols/NASDAQ.txt") {
     if (cana) {
       //if(PositiveDerivative(s1,25,8,1.0)){
       //if(Crossover(s1,6,10,6,-1.0)){
-      //if(Inflection(s1,25,16) && PositiveDerivative(s1,25,4,1.0)){
-      if(AroonZero(s1,14,16,90)){
+      //if(Inflection(s1,25,8) && PositiveDerivative(s1,25,3,1.0)){
+      if(UnusualVolume(s1,8,25,400)){
+      //if(AroonZero(s1,14,16,90)){
+      //if(true){
 	// if(fOut->GetListOfKeys()->Contains(Symbol.Data())){
 	//   fOut->Delete(s1->GetSymbol()+";1");
 	// }
