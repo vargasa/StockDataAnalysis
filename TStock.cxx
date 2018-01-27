@@ -79,7 +79,7 @@ Int_t TStock::GetIndex(Int_t Event, Int_t Interval) const{
 
 ////////////////////////////////////////////////////////////////////////////////
 /// Get data from Yahoo! Finance API using getData.sh Shell Script
-
+/// When using DBFile fStartDate and fEndDate changes to reflect the available data
 TTree *TStock::GetData(){
 
   if(fDBFile) {
@@ -88,7 +88,21 @@ TTree *TStock::GetData(){
       TCut sdt = Form("fTimeStamp.GetSec() >= %ld", fStartDate.GetSec());
       TCut edt = Form("fTimeStamp.GetSec() <= %ld", fEndDate.GetSec());
       fTree = t1->CopyTree(sdt&&edt);
+      
+      Int_t nav = fTree->GetEntries();
+      
       fReader.SetTree(fTree);
+      fReader.Restart();
+      while(fReader.Next()){
+	fStartDate = TTimeStamp(fTS->GetSec()); // Reset StartDate
+	break;
+      }
+
+      fReader.SetEntriesRange(nav-1, nav);
+      while(fReader.Next()){
+	fEndDate = TTimeStamp(fTS->GetSec()); //Reset EndDate
+	break;
+      }
     }
   }
   
