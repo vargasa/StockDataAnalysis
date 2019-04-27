@@ -103,6 +103,9 @@ TTree *TStock::GetData(){
         fEndDate = TTimeStamp(fTS->GetSec()); //Reset EndDate
         break;
       }
+    } else {
+      cout << fSymbol << ": Not Found in DBFile\n";
+      return 0;
     }
   }
 
